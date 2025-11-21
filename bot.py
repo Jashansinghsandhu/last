@@ -3352,8 +3352,14 @@ async def dice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
-    # Check if arguments are provided (PvP format: /dice @username amount MX ftY)
+    # Check if in a group and has bet amount (new group challenge feature)
     message_text = update.message.text.strip().split()
+    if update.effective_chat.type in ['group', 'supergroup'] and len(message_text) == 2:
+        # New group challenge format: /dice amount
+        await create_group_challenge(update, context, "dice")
+        return
+    
+    # Check if arguments are provided (PvP format: /dice @username amount MX ftY)
     if len(message_text) > 1:
         # Arguments provided, treat as PvP command
         await generic_emoji_game_command(update, context, "dice")
@@ -3378,8 +3384,14 @@ async def darts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
-    # Check if arguments are provided (PvP format: /darts @username amount MX ftY)
+    # Check if in a group and has bet amount (new group challenge feature)
     message_text = update.message.text.strip().split()
+    if update.effective_chat.type in ['group', 'supergroup'] and len(message_text) == 2:
+        # New group challenge format: /darts amount
+        await create_group_challenge(update, context, "darts")
+        return
+    
+    # Check if arguments are provided (PvP format: /darts @username amount MX ftY)
     if len(message_text) > 1:
         # Arguments provided, treat as PvP command
         await generic_emoji_game_command(update, context, "darts")
@@ -3404,8 +3416,14 @@ async def football_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
-    # Check if arguments are provided (PvP format: /goal @username amount MX ftY)
+    # Check if in a group and has bet amount (new group challenge feature)
     message_text = update.message.text.strip().split()
+    if update.effective_chat.type in ['group', 'supergroup'] and len(message_text) == 2:
+        # New group challenge format: /goal amount
+        await create_group_challenge(update, context, "goal")
+        return
+    
+    # Check if arguments are provided (PvP format: /goal @username amount MX ftY)
     if len(message_text) > 1:
         # Arguments provided, treat as PvP command
         await generic_emoji_game_command(update, context, "goal")
@@ -3430,8 +3448,14 @@ async def bowling_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
-    # Check if arguments are provided (PvP format: /bowl @username amount MX ftY)
+    # Check if in a group and has bet amount (new group challenge feature)
     message_text = update.message.text.strip().split()
+    if update.effective_chat.type in ['group', 'supergroup'] and len(message_text) == 2:
+        # New group challenge format: /bowl amount
+        await create_group_challenge(update, context, "bowl")
+        return
+    
+    # Check if arguments are provided (PvP format: /bowl @username amount MX ftY)
     if len(message_text) > 1:
         # Arguments provided, treat as PvP command
         await generic_emoji_game_command(update, context, "bowl")
@@ -3535,6 +3559,316 @@ async def play_single_emoji_game(update: Update, context: ContextTypes.DEFAULT_T
             f"Game ID: <code>{game_id}</code>",
             parse_mode=ParseMode.HTML
         )
+
+# --- GROUP CHALLENGE SYSTEM ---
+# Create a group challenge that can be accepted by others
+async def create_group_challenge(update: Update, context: ContextTypes.DEFAULT_TYPE, game_type: str):
+    """Create a group PvP challenge with mode and rolls selection"""
+    user = update.effective_user
+    message_text = update.message.text.strip().split()
+    
+    try:
+        bet_amount_usd, bet_amount_currency, currency = parse_bet_amount(message_text[1], user.id)
+    except (ValueError, IndexError):
+        await update.message.reply_text("Usage: /{} <amount>\nExample: /{} 5 or /{} all".format(game_type, game_type, game_type))
+        return
+    
+    if user_wallets.get(user.id, 0.0) < bet_amount_usd:
+        await send_insufficient_balance_message(update)
+        return
+    
+    # Show mode and rolls selection
+    keyboard = [
+        [InlineKeyboardButton("🎮 Normal Mode", callback_data=f"gc_mode_{game_type}_normal_{bet_amount_usd}_{bet_amount_currency}_{currency}")],
+        [InlineKeyboardButton("🔥 Crazy Mode", callback_data=f"gc_mode_{game_type}_crazy_{bet_amount_usd}_{bet_amount_currency}_{currency}")],
+    ]
+    
+    await update.message.reply_text(
+        f"🎯 <b>Create {game_type.upper()} Challenge</b>\n\n"
+        f"Select game mode:",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# Callback for mode selection
+async def group_challenge_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    parts = query.data.split("_")
+    game_type = parts[2]
+    mode = parts[3]
+    bet_amount_usd = float(parts[4])
+    bet_amount_currency = float(parts[5])
+    currency = parts[6]
+    
+    # Show number of rolls selection
+    keyboard = [
+        [InlineKeyboardButton("1 Roll", callback_data=f"gc_rolls_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_1")],
+        [InlineKeyboardButton("2 Rolls", callback_data=f"gc_rolls_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_2")],
+        [InlineKeyboardButton("3 Rolls", callback_data=f"gc_rolls_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_3")],
+    ]
+    
+    await query.edit_message_text(
+        f"🎯 <b>Create {game_type.upper()} Challenge</b>\n\n"
+        f"Mode: {mode.title()}\n"
+        f"Select number of rolls:",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# Callback for rolls selection and challenge creation
+async def group_challenge_rolls_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    
+    parts = query.data.split("_")
+    game_type = parts[2]
+    mode = parts[3]
+    bet_amount_usd = float(parts[4])
+    bet_amount_currency = float(parts[5])
+    currency = parts[6]
+    rolls = int(parts[7])
+    
+    await ensure_user_in_wallets(user.id, user.username, context=context)
+    
+    # Final check balance
+    if user_wallets.get(user.id, 0.0) < bet_amount_usd:
+        await query.edit_message_text("❌ Insufficient balance to create this challenge.")
+        return
+    
+    # Create the challenge
+    match_id = generate_unique_id("GC")
+    emoji_map = {"dice": "🎲", "darts": "🎯", "goal": "⚽", "bowl": "🎳"}
+    emoji = emoji_map.get(game_type, "🎮")
+    
+    game_sessions[match_id] = {
+        "id": match_id,
+        "game_type": f"group_challenge_{game_type}",
+        "chat_id": update.effective_chat.id,
+        "host_id": user.id,
+        "host_username": user.username or f"User_{user.id}",
+        "opponent_id": None,
+        "bet_amount_usd": bet_amount_usd,
+        "bet_amount_currency": bet_amount_currency,
+        "currency": currency,
+        "mode": mode,
+        "rolls": rolls,
+        "status": "pending",
+        "timestamp": str(datetime.now(timezone.utc))
+    }
+    
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, "$")
+    formatted_bet = f"{currency_symbol}{bet_amount_currency:.2f}"
+    mode_desc = "Highest wins" if mode == "normal" else "Lowest wins"
+    
+    # Pin the challenge message
+    challenge_msg = await query.message.reply_text(
+        f"{emoji} <b>GROUP CHALLENGE!</b> {emoji}\n\n"
+        f"🎮 Game: {game_type.upper()}\n"
+        f"👤 Host: @{user.username or user.id}\n"
+        f"💰 Bet: {formatted_bet}\n"
+        f"🎯 Mode: {mode.title()} ({mode_desc})\n"
+        f"🔢 Rolls: {rolls}\n"
+        f"🆔 Match ID: <code>{match_id}</code>\n\n"
+        f"Tap a button below to join!",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"gc_accept_{match_id}")],
+            [InlineKeyboardButton("🤖 Play with Bot (Host Only)", callback_data=f"gc_playbot_{match_id}")]
+        ])
+    )
+    
+    # Try to pin the message
+    try:
+        await context.bot.pin_chat_message(update.effective_chat.id, challenge_msg.message_id)
+    except Exception as e:
+        logging.warning(f"Could not pin challenge message: {e}")
+    
+    await query.edit_message_text(
+        f"✅ Challenge created!\nMatch ID: <code>{match_id}</code>",
+        parse_mode=ParseMode.HTML
+    )
+
+# Callback for accepting a challenge
+async def group_challenge_accept_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    
+    match_id = query.data.replace("gc_accept_", "")
+    match = game_sessions.get(match_id)
+    
+    if not match or match.get("status") != "pending":
+        await query.answer("This challenge is no longer available.", show_alert=True)
+        return
+    
+    if user.id == match["host_id"]:
+        await query.answer("You can't accept your own challenge!", show_alert=True)
+        return
+    
+    await ensure_user_in_wallets(user.id, user.username, context=context)
+    
+    if user_wallets.get(user.id, 0.0) < match["bet_amount_usd"]:
+        await query.answer("You don't have enough balance for this challenge.", show_alert=True)
+        return
+    
+    # Start the PvP match
+    match["opponent_id"] = user.id
+    match["opponent_username"] = user.username or f"User_{user.id}"
+    match["status"] = "active"
+    
+    # Deduct bets from both players
+    user_wallets[match["host_id"]] -= match["bet_amount_usd"]
+    user_wallets[user.id] -= match["bet_amount_usd"]
+    save_user_data(match["host_id"])
+    save_user_data(user.id)
+    
+    currency_symbol = CURRENCY_SYMBOLS.get(match["currency"], "$")
+    formatted_bet = f"{currency_symbol}{match['bet_amount_currency']:.2f}"
+    
+    await query.edit_message_text(
+        f"🎮 <b>MATCH STARTED!</b>\n\n"
+        f"👤 @{match['host_username']} vs @{user.username or user.id}\n"
+        f"💰 Prize Pool: {currency_symbol}{match['bet_amount_currency'] * 2:.2f}\n\n"
+        f"Match will begin shortly...",
+        parse_mode=ParseMode.HTML
+    )
+    
+    # Start the actual game (similar to existing PvP logic)
+    await asyncio.sleep(2)
+    await execute_group_challenge_game(update, context, match_id)
+
+# Callback for host playing with bot
+async def group_challenge_playbot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    
+    match_id = query.data.replace("gc_playbot_", "")
+    match = game_sessions.get(match_id)
+    
+    if not match or match.get("status") != "pending":
+        await query.answer("This challenge is no longer available.", show_alert=True)
+        return
+    
+    if user.id != match["host_id"]:
+        await query.answer("Only the host can play with the bot!", show_alert=True)
+        return
+    
+    # Convert to PvB game
+    match["status"] = "active"
+    match["opponent_id"] = 0  # Bot
+    match["opponent_username"] = "Bot"
+    
+    # Deduct bet from host
+    user_wallets[user.id] -= match["bet_amount_usd"]
+    save_user_data(user.id)
+    
+    await query.edit_message_text(
+        f"🤖 <b>PLAYING WITH BOT!</b>\n\n"
+        f"Match will begin shortly...",
+        parse_mode=ParseMode.HTML
+    )
+    
+    await asyncio.sleep(2)
+    await execute_group_challenge_game(update, context, match_id)
+
+# Execute the actual group challenge game
+async def execute_group_challenge_game(update: Update, context: ContextTypes.DEFAULT_TYPE, match_id: str):
+    """Execute the group challenge game with emoji animations"""
+    match = game_sessions.get(match_id)
+    if not match:
+        return
+    
+    game_type = match["game_type"].replace("group_challenge_", "")
+    emoji_map = {"dice": "🎲", "darts": "🎯", "goal": "⚽", "bowl": "🎳"}
+    dice_type_map = {"dice": "dice", "darts": "dart", "goal": "football", "bowl": "bowling"}
+    
+    emoji = emoji_map.get(game_type, "🎮")
+    dice_type = dice_type_map.get(game_type)
+    
+    # Send dice for both players
+    host_rolls = []
+    opponent_rolls = []
+    
+    for i in range(match["rolls"]):
+        host_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+        if match["opponent_id"] != 0:  # Not bot
+            opponent_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+        else:
+            # Bot rolls (simulated)
+            await asyncio.sleep(0.5)
+            opponent_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+        
+        await asyncio.sleep(4)  # Wait for animation
+        
+        host_rolls.append(host_dice.dice.value)
+        opponent_rolls.append(opponent_dice.dice.value)
+    
+    # Calculate scores
+    host_score = sum(host_rolls)
+    opponent_score = sum(opponent_rolls)
+    
+    # Determine winner
+    if match["mode"] == "normal":
+        host_wins = host_score > opponent_score
+    else:  # crazy mode
+        host_wins = host_score < opponent_score
+    
+    currency_symbol = CURRENCY_SYMBOLS.get(match["currency"], "$")
+    prize_usd = match["bet_amount_usd"] * 2
+    prize_currency = match["bet_amount_currency"] * 2
+    
+    if host_score == opponent_score:
+        # Tie - return bets
+        user_wallets[match["host_id"]] += match["bet_amount_usd"]
+        if match["opponent_id"] != 0:
+            user_wallets[match["opponent_id"]] += match["bet_amount_usd"]
+        save_user_data(match["host_id"])
+        if match["opponent_id"] != 0:
+            save_user_data(match["opponent_id"])
+        
+        result_text = (
+            f"🤝 <b>TIE!</b>\n\n"
+            f"Both scored {host_score}!\n"
+            f"Bets returned to both players."
+        )
+    elif host_wins:
+        user_wallets[match["host_id"]] += prize_usd
+        update_stats_on_bet(match["host_id"], match_id, match["bet_amount_usd"], True, pvp_win=True, multiplier=2, context=context)
+        if match["opponent_id"] != 0:
+            update_stats_on_bet(match["opponent_id"], match_id, match["bet_amount_usd"], False, context=context)
+        save_user_data(match["host_id"])
+        
+        result_text = (
+            f"🎉 <b>@{match['host_username']} WINS!</b>\n\n"
+            f"Host: {host_score} | Opponent: {opponent_score}\n"
+            f"Prize: {currency_symbol}{prize_currency:.2f}"
+        )
+    else:
+        if match["opponent_id"] != 0:
+            user_wallets[match["opponent_id"]] += prize_usd
+            update_stats_on_bet(match["opponent_id"], match_id, match["bet_amount_usd"], True, pvp_win=True, multiplier=2, context=context)
+        update_stats_on_bet(match["host_id"], match_id, match["bet_amount_usd"], False, context=context)
+        save_user_data(match["opponent_id"])
+        
+        result_text = (
+            f"🎉 <b>@{match.get('opponent_username', 'Opponent')} WINS!</b>\n\n"
+            f"Host: {host_score} | Opponent: {opponent_score}\n"
+            f"Prize: {currency_symbol}{prize_currency:.2f}"
+        )
+    
+    match["status"] = "completed"
+    
+    await context.bot.send_message(
+        match["chat_id"],
+        f"{emoji} <b>MATCH RESULT</b> {emoji}\n\n"
+        f"{result_text}\n\n"
+        f"Match ID: <code>{match_id}</code>",
+        parse_mode=ParseMode.HTML
+    )
 
 # --- Play vs Bot main logic (bot rolls real emoji) ---
 async def play_vs_bot_game(update: Update, context: ContextTypes.DEFAULT_TYPE, game_type: str, target_score: int):
@@ -9825,6 +10159,10 @@ def main():
     app.add_handler(CallbackQueryHandler(main_menu_callback, pattern=r"^(main_|back_to_main|my_matches|my_deals|deposit_usdt_menu|deposit_coming_soon)"))
     app.add_handler(CallbackQueryHandler(games_category_callback, pattern=r"^games_(category_|emoji_)")) # NEW - updated to handle emoji subcategories
     app.add_handler(CallbackQueryHandler(play_single_emoji_callback, pattern=r"^play_single_")) # NEW - Single emoji games
+    app.add_handler(CallbackQueryHandler(group_challenge_mode_callback, pattern=r"^gc_mode_")) # NEW - Group challenge mode
+    app.add_handler(CallbackQueryHandler(group_challenge_rolls_callback, pattern=r"^gc_rolls_")) # NEW - Group challenge rolls
+    app.add_handler(CallbackQueryHandler(group_challenge_accept_callback, pattern=r"^gc_accept_")) # NEW - Accept group challenge
+    app.add_handler(CallbackQueryHandler(group_challenge_playbot_callback, pattern=r"^gc_playbot_")) # NEW - Play with bot
     app.add_handler(CallbackQueryHandler(level_all_command, pattern=r"^level_all$")) # NEW
     app.add_handler(CallbackQueryHandler(price_update_callback, pattern=r"^price_update_")) # NEW
     app.add_handler(CallbackQueryHandler(game_info_callback, pattern=r"^game_")); app.add_handler(CallbackQueryHandler(blackjack_callback, pattern=r"^bj_"))
