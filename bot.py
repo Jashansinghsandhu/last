@@ -3499,6 +3499,7 @@ async def play_single_emoji_callback(update: Update, context: ContextTypes.DEFAU
     
     game_config = SINGLE_EMOJI_GAMES[game_key]
     context.user_data['single_emoji_game'] = game_key
+    context.user_data['awaiting_single_emoji_bet'] = True
     
     await query.edit_message_text(
         f"{game_config['emoji']} <b>{game_config['name']}</b>\n\n"
@@ -3507,7 +3508,6 @@ async def play_single_emoji_callback(update: Update, context: ContextTypes.DEFAU
         f"Win chance: {game_config['win_chance']*100:.1f}%",
         parse_mode=ParseMode.HTML
     )
-    return SELECT_BET_AMOUNT
 
 # Play single emoji game (called after bet amount is entered)
 async def play_single_emoji_game(update: Update, context: ContextTypes.DEFAULT_TYPE, game_key: str, bet_amount_usd: float, bet_amount_currency: float, currency: str):
@@ -6013,6 +6013,28 @@ async def message_listener(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_escrow_conversation(update, context)
         return
 
+    # Handle single emoji game bet input
+    if context.user_data.get('awaiting_single_emoji_bet') and update.message.text:
+        game_key = context.user_data.get('single_emoji_game')
+        if game_key in SINGLE_EMOJI_GAMES:
+            try:
+                bet_amount_usd, bet_amount_currency, currency = parse_bet_amount(update.message.text, user.id)
+                
+                if user_wallets.get(user.id, 0.0) < bet_amount_usd:
+                    await send_insufficient_balance_message(update)
+                    context.user_data.clear()
+                    return
+                
+                # Clear the awaiting flag
+                context.user_data.clear()
+                
+                # Play the game
+                await play_single_emoji_game(update, context, game_key, bet_amount_usd, bet_amount_currency, currency)
+                return
+            except ValueError:
+                await update.message.reply_text("Invalid amount. Please enter a valid number or 'all'.")
+                return
+
     # Handle PvB games
     active_pvb_game_id = context.chat_data.get(f"active_pvb_game_{user.id}")
     if active_pvb_game_id and active_pvb_game_id in game_sessions:
@@ -6792,23 +6814,20 @@ def generate_deposit_address_for_user(user_id: int, method: str):
         import hashlib
         from bip_utils import WifDecoder
         
+        # Decode WIF to get private key bytes
         try:
-            # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_BTC, net_ver=Bip44Coins.BITCOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child address using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PublicKey().ToAddress(), address_index
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_BTC), Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            child_ctx = bip44_ctx.AddressIndex(address_index)
-            return child_ctx.PublicKey().ToAddress(), address_index
+            master_priv_bytes = wif_dec.Raw().ToBytes()
+        except Exception as e:
+            raise ValueError(f"Invalid Bitcoin WIF key: {e}")
+        
+        # Derive child address using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PublicKey().ToAddress(), address_index
     
     # Litecoin
     elif blockchain == "litecoin":
@@ -6818,23 +6837,20 @@ def generate_deposit_address_for_user(user_id: int, method: str):
         import hashlib
         from bip_utils import WifDecoder
         
+        # Decode WIF to get private key bytes
         try:
-            # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_LTC, net_ver=Bip44Coins.LITECOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child address using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PublicKey().ToAddress(), address_index
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_LTC), Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            child_ctx = bip44_ctx.AddressIndex(address_index)
-            return child_ctx.PublicKey().ToAddress(), address_index
+            master_priv_bytes = wif_dec.Raw().ToBytes()
+        except Exception as e:
+            raise ValueError(f"Invalid Litecoin WIF key: {e}")
+        
+        # Derive child address using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PublicKey().ToAddress(), address_index
     
     # Dogecoin
     elif blockchain == "dogecoin":
@@ -6844,23 +6860,20 @@ def generate_deposit_address_for_user(user_id: int, method: str):
         import hashlib
         from bip_utils import WifDecoder
         
+        # Decode WIF to get private key bytes
         try:
-            # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_DOGE, net_ver=Bip44Coins.DOGECOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child address using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PublicKey().ToAddress(), address_index
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_DOGE), Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            child_ctx = bip44_ctx.AddressIndex(address_index)
-            return child_ctx.PublicKey().ToAddress(), address_index
+            master_priv_bytes = wif_dec.Raw().ToBytes()
+        except Exception as e:
+            raise ValueError(f"Invalid Dogecoin WIF key: {e}")
+        
+        # Derive child address using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PublicKey().ToAddress(), address_index
     
     # Solana
     elif blockchain == "solana":
@@ -6920,58 +6933,40 @@ def get_private_key_for_address_index(address_index, blockchain="eth"):
         return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
     
     elif blockchain == "bitcoin":
-        try:
-            # Try to decode as WIF first
-            wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_BTC, net_ver=Bip44Coins.BITCOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child key using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PrivateKey().Raw().ToHex()
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_BTC), Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
+        wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_BTC, net_ver=Bip44Coins.BITCOIN.KeyNetVersions())
+        master_priv_bytes = wif_dec.Raw().ToBytes()
+        
+        # Derive child key using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PrivateKey().Raw().ToHex()
     
     elif blockchain == "litecoin":
-        try:
-            # Try to decode as WIF first
-            wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_LTC, net_ver=Bip44Coins.LITECOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child key using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PrivateKey().Raw().ToHex()
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_LTC), Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
+        wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_LTC, net_ver=Bip44Coins.LITECOIN.KeyNetVersions())
+        master_priv_bytes = wif_dec.Raw().ToBytes()
+        
+        # Derive child key using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PrivateKey().Raw().ToHex()
     
     elif blockchain == "dogecoin":
-        try:
-            # Try to decode as WIF first
-            wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_DOGE, net_ver=Bip44Coins.DOGECOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child key using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PrivateKey().Raw().ToHex()
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_DOGE), Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
+        wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_DOGE, net_ver=Bip44Coins.DOGECOIN.KeyNetVersions())
+        master_priv_bytes = wif_dec.Raw().ToBytes()
+        
+        # Derive child key using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PrivateKey().Raw().ToHex()
     
     elif blockchain == "solana":
         seed_material = bytes.fromhex(MASTER_PRIVATE_KEY_SOL) + address_index.to_bytes(4, 'big')
