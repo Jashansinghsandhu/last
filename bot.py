@@ -1662,13 +1662,30 @@ async def games_category_callback(update: Update, context: ContextTypes.DEFAULT_
             [InlineKeyboardButton("🔙 Back to Categories", callback_data="main_games")]
         ]
     elif category == "emoji":
-        text = "😀 <b>Emoji Games</b>\n\nChoose a game to see how to play:"
+        text = "😀 <b>Emoji Games</b>\n\nChoose a category:"
+        keyboard = [
+            [InlineKeyboardButton("🎮 Regular Games", callback_data="games_emoji_regular")],
+            [InlineKeyboardButton("🎯 Single Emoji\nGames", callback_data="games_emoji_single")],
+            [InlineKeyboardButton("🔙 Back to Categories", callback_data="main_games")]
+        ]
+    elif category == "emoji-regular":
+        text = "🎮 <b>Regular Emoji Games</b>\n\nChoose a game to see how to play:"
         keyboard = [
             [InlineKeyboardButton("🎲 Dice", callback_data="game_dice_bot")],
             [InlineKeyboardButton("🎯 Darts", callback_data="game_darts")],
             [InlineKeyboardButton("⚽ Football", callback_data="game_football")],
             [InlineKeyboardButton("🎳 Bowling", callback_data="game_bowling")],
-            [InlineKeyboardButton("🔙 Back to Categories", callback_data="main_games")]
+            [InlineKeyboardButton("🔙 Back to Emoji Games", callback_data="games_category_emoji")]
+        ]
+    elif category == "emoji-single":
+        text = "🎯 <b>Single Emoji Games</b>\n\nQuick games with instant results!\n\nHow to play: Choose a game, set your bet, and watch the emoji!"
+        keyboard = [
+            [InlineKeyboardButton("🎯 Darts (1.15x)", callback_data="game_single_darts")],
+            [InlineKeyboardButton("⚽ Soccer (1.53x)", callback_data="game_single_soccer")],
+            [InlineKeyboardButton("🏀 Basket (2.25x)", callback_data="game_single_basket")],
+            [InlineKeyboardButton("🎳 Bowling (5.00x)", callback_data="game_single_bowling")],
+            [InlineKeyboardButton("🎰 Slot (14.5x)", callback_data="game_single_slot")],
+            [InlineKeyboardButton("🔙 Back to Emoji Games", callback_data="games_category_emoji")]
         ]
     else:
         return
@@ -1992,6 +2009,30 @@ async def game_info_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to House Games", callback_data="games_category_house")]])
         )
+
+    # Single Emoji Games
+    elif data.startswith("game_single_"):
+        game_key = data.replace("game_single_", "")
+        if game_key in SINGLE_EMOJI_GAMES:
+            game_config = SINGLE_EMOJI_GAMES[game_key]
+            await query.edit_message_text(
+                f"{game_config['emoji']} <b>{game_config['name']}</b>\n\n"
+                f"<b>How to play:</b>\n"
+                f"• Quick instant-result game\n"
+                f"• Win when: {game_config['win_description']}\n"
+                f"• Multiplier: {game_config['multiplier']}x\n"
+                f"• Win chance: {game_config['win_chance']*100:.1f}%\n\n"
+                f"<b>How to start:</b>\n"
+                f"1. Tap 'Play Game' below\n"
+                f"2. Enter your bet amount\n"
+                f"3. Watch the {game_config['emoji']} animation!\n\n"
+                f"Simple, fast, and fun!",
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(f"🎮 Play {game_config['emoji']}", callback_data=f"play_single_{game_key}")],
+                    [InlineKeyboardButton("🔙 Back", callback_data="games_category_emoji-single")]
+                ])
+            )
 
     # PvP games
     elif data.startswith("game_"):
@@ -3409,6 +3450,91 @@ async def bowling_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+# --- SINGLE EMOJI GAMES ---
+# Callback handler for "Play" button in single emoji games
+async def play_single_emoji_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    game_key = query.data.replace("play_single_", "")
+    if game_key not in SINGLE_EMOJI_GAMES:
+        await query.edit_message_text("Game not found.")
+        return
+    
+    game_config = SINGLE_EMOJI_GAMES[game_key]
+    context.user_data['single_emoji_game'] = game_key
+    
+    await query.edit_message_text(
+        f"{game_config['emoji']} <b>{game_config['name']}</b>\n\n"
+        f"Enter your bet amount (or 'all'):\n\n"
+        f"Multiplier: {game_config['multiplier']}x\n"
+        f"Win chance: {game_config['win_chance']*100:.1f}%",
+        parse_mode=ParseMode.HTML
+    )
+    return SELECT_BET_AMOUNT
+
+# Play single emoji game (called after bet amount is entered)
+async def play_single_emoji_game(update: Update, context: ContextTypes.DEFAULT_TYPE, game_key: str, bet_amount_usd: float, bet_amount_currency: float, currency: str):
+    user = update.effective_user
+    await ensure_user_in_wallets(user.id, user.username, context=context)
+    
+    if game_key not in SINGLE_EMOJI_GAMES:
+        await update.message.reply_text("Invalid game.")
+        return
+    
+    game_config = SINGLE_EMOJI_GAMES[game_key]
+    
+    # Check bet limits
+    if not await check_bet_limits(update, bet_amount_usd, f'emoji_{game_key}'):
+        return
+    
+    # Deduct bet
+    user_wallets[user.id] -= bet_amount_usd
+    save_user_data(user.id)
+    
+    # Send the dice/emoji animation
+    dice_msg = await update.message.reply_dice(emoji=game_config['dice_type'])
+    
+    # Wait for the animation to complete
+    await asyncio.sleep(4)
+    
+    # Check if won
+    dice_value = dice_msg.dice.value
+    won = game_config['win_condition'](dice_value)
+    
+    game_id = generate_unique_id("SE")
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, "$")
+    formatted_bet = f"{currency_symbol}{bet_amount_currency:.2f}"
+    
+    if won:
+        winnings_usd = bet_amount_usd * game_config['multiplier']
+        winnings_currency = bet_amount_currency * game_config['multiplier']
+        user_wallets[user.id] += winnings_usd
+        update_stats_on_bet(user.id, game_id, bet_amount_usd, True, multiplier=game_config['multiplier'], context=context)
+        update_pnl(user.id)
+        save_user_data(user.id)
+        
+        await update.message.reply_text(
+            f"🎉 <b>YOU WON!</b>\n\n"
+            f"{game_config['emoji']} {game_config['win_description']}!\n"
+            f"Bet: {formatted_bet}\n"
+            f"Won: {currency_symbol}{winnings_currency:.2f} ({game_config['multiplier']}x)\n\n"
+            f"Game ID: <code>{game_id}</code>",
+            parse_mode=ParseMode.HTML
+        )
+    else:
+        update_stats_on_bet(user.id, game_id, bet_amount_usd, False, multiplier=0, context=context)
+        update_pnl(user.id)
+        save_user_data(user.id)
+        
+        await update.message.reply_text(
+            f"😔 <b>You lost</b>\n\n"
+            f"Better luck next time!\n"
+            f"Lost: {formatted_bet}\n\n"
+            f"Game ID: <code>{game_id}</code>",
+            parse_mode=ParseMode.HTML
+        )
 
 # --- Play vs Bot main logic (bot rolls real emoji) ---
 async def play_vs_bot_game(update: Update, context: ContextTypes.DEFAULT_TYPE, game_type: str, target_score: int):
@@ -9697,7 +9823,8 @@ def main():
     app.add_handler(withdrawal_approval_handler)
 
     app.add_handler(CallbackQueryHandler(main_menu_callback, pattern=r"^(main_|back_to_main|my_matches|my_deals|deposit_usdt_menu|deposit_coming_soon)"))
-    app.add_handler(CallbackQueryHandler(games_category_callback, pattern=r"^games_category_")) # NEW
+    app.add_handler(CallbackQueryHandler(games_category_callback, pattern=r"^games_(category_|emoji_)")) # NEW - updated to handle emoji subcategories
+    app.add_handler(CallbackQueryHandler(play_single_emoji_callback, pattern=r"^play_single_")) # NEW - Single emoji games
     app.add_handler(CallbackQueryHandler(level_all_command, pattern=r"^level_all$")) # NEW
     app.add_handler(CallbackQueryHandler(price_update_callback, pattern=r"^price_update_")) # NEW
     app.add_handler(CallbackQueryHandler(game_info_callback, pattern=r"^game_")); app.add_handler(CallbackQueryHandler(blackjack_callback, pattern=r"^bj_"))
@@ -9799,7 +9926,27 @@ async def select_bombs_callback(update: Update, context: ContextTypes.DEFAULT_TY
     return SELECT_BET_AMOUNT
 
 async def select_bet_amount_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    game_type = context.user_data['game_type']
+    game_type = context.user_data.get('game_type')
+    single_emoji_game = context.user_data.get('single_emoji_game')
+    
+    if single_emoji_game:
+        # Handle single emoji game bet input
+        user = update.effective_user
+        try:
+            bet_amount_usd, bet_amount_currency, currency = parse_bet_amount(update.message.text, user.id)
+        except ValueError:
+            await update.message.reply_text("Invalid amount. Please enter a valid number or 'all'.")
+            return SELECT_BET_AMOUNT
+        
+        if user_wallets.get(user.id, 0.0) < bet_amount_usd:
+            await send_insufficient_balance_message(update)
+            context.user_data.clear()
+            return ConversationHandler.END
+        
+        await play_single_emoji_game(update, context, single_emoji_game, bet_amount_usd, bet_amount_currency, currency)
+        context.user_data.clear()
+        return ConversationHandler.END
+    
     if game_type == 'mines':
         return await mines_command(update, context)
     elif game_type == 'tower':
