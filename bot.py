@@ -1644,7 +1644,18 @@ async def games_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def games_category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    category = query.data.split('_')[-1] # house or emoji
+    
+    # Extract category from callback data
+    if query.data == "games_category_emoji":
+        category = "emoji"
+    elif query.data == "games_emoji_regular":
+        category = "emoji-regular"
+    elif query.data == "games_emoji_single":
+        category = "emoji-single"
+    elif query.data == "games_category_house":
+        category = "house"
+    else:
+        category = query.data.split('_')[-1]
 
     if category == "house":
         text = "🏠 <b>House Games</b>\n\nChoose a game to see how to play:"
@@ -1665,7 +1676,7 @@ async def games_category_callback(update: Update, context: ContextTypes.DEFAULT_
         text = "😀 <b>Emoji Games</b>\n\nChoose a category:"
         keyboard = [
             [InlineKeyboardButton("🎮 Regular Games", callback_data="games_emoji_regular")],
-            [InlineKeyboardButton("🎯 Single Emoji\nGames", callback_data="games_emoji_single")],
+            [InlineKeyboardButton("🎯 Single Emoji Games", callback_data="games_emoji_single")],
             [InlineKeyboardButton("🔙 Back to Categories", callback_data="main_games")]
         ]
     elif category == "emoji-regular":
@@ -3617,8 +3628,38 @@ async def group_challenge_mode_callback(update: Update, context: ContextTypes.DE
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-# Callback for rolls selection and challenge creation
+# Callback for rolls selection - show target score selection
 async def group_challenge_rolls_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    parts = query.data.split("_")
+    game_type = parts[2]
+    mode = parts[3]
+    bet_amount_usd = float(parts[4])
+    bet_amount_currency = float(parts[5])
+    currency = parts[6]
+    rolls = int(parts[7])
+    
+    # Show target score (first to X) selection
+    keyboard = [
+        [InlineKeyboardButton("First to 1", callback_data=f"gc_target_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_{rolls}_1")],
+        [InlineKeyboardButton("First to 2", callback_data=f"gc_target_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_{rolls}_2")],
+        [InlineKeyboardButton("First to 3", callback_data=f"gc_target_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_{rolls}_3")],
+        [InlineKeyboardButton("First to 5", callback_data=f"gc_target_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_{rolls}_5")],
+    ]
+    
+    await query.edit_message_text(
+        f"🎯 <b>Create {game_type.upper()} Challenge</b>\n\n"
+        f"Mode: {mode.title()}\n"
+        f"Rolls: {rolls}\n"
+        f"Select target score (First to X wins):",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# Callback for target score selection and challenge creation
+async def group_challenge_target_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user = query.from_user
@@ -3630,6 +3671,7 @@ async def group_challenge_rolls_callback(update: Update, context: ContextTypes.D
     bet_amount_currency = float(parts[5])
     currency = parts[6]
     rolls = int(parts[7])
+    target_score = int(parts[8])
     
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
@@ -3655,6 +3697,7 @@ async def group_challenge_rolls_callback(update: Update, context: ContextTypes.D
         "currency": currency,
         "mode": mode,
         "rolls": rolls,
+        "target_score": target_score,
         "status": "pending",
         "timestamp": str(datetime.now(timezone.utc))
     }
@@ -3671,6 +3714,7 @@ async def group_challenge_rolls_callback(update: Update, context: ContextTypes.D
         f"💰 Bet: {formatted_bet}\n"
         f"🎯 Mode: {mode.title()} ({mode_desc})\n"
         f"🔢 Rolls: {rolls}\n"
+        f"🏆 Target: First to {target_score}\n"
         f"🆔 Match ID: <code>{match_id}</code>\n\n"
         f"Tap a button below to join!",
         parse_mode=ParseMode.HTML,
@@ -3777,7 +3821,7 @@ async def group_challenge_playbot_callback(update: Update, context: ContextTypes
 
 # Execute the actual group challenge game
 async def execute_group_challenge_game(update: Update, context: ContextTypes.DEFAULT_TYPE, match_id: str):
-    """Execute the group challenge game with emoji animations"""
+    """Execute the group challenge game with emoji animations and first-to-X scoring"""
     match = game_sessions.get(match_id)
     if not match:
         return
@@ -3789,40 +3833,80 @@ async def execute_group_challenge_game(update: Update, context: ContextTypes.DEF
     emoji = emoji_map.get(game_type, "🎮")
     dice_type = dice_type_map.get(game_type)
     
-    # Send dice for both players
-    host_rolls = []
-    opponent_rolls = []
-    
-    for i in range(match["rolls"]):
-        host_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
-        if match["opponent_id"] != 0:  # Not bot
-            opponent_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
-        else:
-            # Bot rolls (simulated)
-            await asyncio.sleep(0.5)
-            opponent_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
-        
-        await asyncio.sleep(4)  # Wait for animation
-        
-        host_rolls.append(host_dice.dice.value)
-        opponent_rolls.append(opponent_dice.dice.value)
-    
-    # Calculate scores
-    host_score = sum(host_rolls)
-    opponent_score = sum(opponent_rolls)
-    
-    # Determine winner
-    if match["mode"] == "normal":
-        host_wins = host_score > opponent_score
-    else:  # crazy mode
-        host_wins = host_score < opponent_score
+    target_score = match.get("target_score", 1)
+    host_wins_count = 0
+    opponent_wins_count = 0
+    round_num = 0
+    max_rounds = 20  # Prevent infinite loops
     
     currency_symbol = CURRENCY_SYMBOLS.get(match["currency"], "$")
+    
+    # Play rounds until someone reaches target score
+    while host_wins_count < target_score and opponent_wins_count < target_score and round_num < max_rounds:
+        round_num += 1
+        
+        await context.bot.send_message(
+            match["chat_id"],
+            f"{emoji} <b>ROUND {round_num}</b> {emoji}\n\n"
+            f"Host: {host_wins_count} | Opponent: {opponent_wins_count}\n"
+            f"First to {target_score} wins!",
+            parse_mode=ParseMode.HTML
+        )
+        
+        # Send dice for both players for this round
+        host_rolls = []
+        opponent_rolls = []
+        
+        for i in range(match["rolls"]):
+            host_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+            if match["opponent_id"] != 0:  # Not bot
+                opponent_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+            else:
+                # Bot rolls (simulated)
+                await asyncio.sleep(0.5)
+                opponent_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+            
+            await asyncio.sleep(4)  # Wait for animation
+            
+            host_rolls.append(host_dice.dice.value)
+            opponent_rolls.append(opponent_dice.dice.value)
+        
+        # Calculate scores for this round
+        host_score = sum(host_rolls)
+        opponent_score = sum(opponent_rolls)
+        
+        # Determine round winner
+        if host_score == opponent_score:
+            round_result = "🤝 Round tied! No point awarded."
+        elif match["mode"] == "normal":
+            if host_score > opponent_score:
+                host_wins_count += 1
+                round_result = f"✅ Host wins round! ({host_score} vs {opponent_score})"
+            else:
+                opponent_wins_count += 1
+                round_result = f"✅ Opponent wins round! ({opponent_score} vs {host_score})"
+        else:  # crazy mode
+            if host_score < opponent_score:
+                host_wins_count += 1
+                round_result = f"✅ Host wins round! ({host_score} vs {opponent_score})"
+            else:
+                opponent_wins_count += 1
+                round_result = f"✅ Opponent wins round! ({opponent_score} vs {host_score})"
+        
+        await context.bot.send_message(
+            match["chat_id"],
+            round_result,
+            parse_mode=ParseMode.HTML
+        )
+        
+        await asyncio.sleep(2)
+    
+    # Determine overall winner
     prize_usd = match["bet_amount_usd"] * 2
     prize_currency = match["bet_amount_currency"] * 2
     
-    if host_score == opponent_score:
-        # Tie - return bets
+    if host_wins_count == opponent_wins_count:
+        # Tie - return bets (shouldn't happen with first-to-X but just in case)
         user_wallets[match["host_id"]] += match["bet_amount_usd"]
         if match["opponent_id"] != 0:
             user_wallets[match["opponent_id"]] += match["bet_amount_usd"]
@@ -3832,10 +3916,10 @@ async def execute_group_challenge_game(update: Update, context: ContextTypes.DEF
         
         result_text = (
             f"🤝 <b>TIE!</b>\n\n"
-            f"Both scored {host_score}!\n"
+            f"Both reached {host_wins_count} wins!\n"
             f"Bets returned to both players."
         )
-    elif host_wins:
+    elif host_wins_count >= target_score:
         user_wallets[match["host_id"]] += prize_usd
         update_stats_on_bet(match["host_id"], match_id, match["bet_amount_usd"], True, pvp_win=True, multiplier=2, context=context)
         if match["opponent_id"] != 0:
@@ -3844,19 +3928,19 @@ async def execute_group_challenge_game(update: Update, context: ContextTypes.DEF
         
         result_text = (
             f"🎉 <b>@{match['host_username']} WINS!</b>\n\n"
-            f"Host: {host_score} | Opponent: {opponent_score}\n"
+            f"Final Score: Host {host_wins_count} - {opponent_wins_count} Opponent\n"
             f"Prize: {currency_symbol}{prize_currency:.2f}"
         )
     else:
         if match["opponent_id"] != 0:
             user_wallets[match["opponent_id"]] += prize_usd
             update_stats_on_bet(match["opponent_id"], match_id, match["bet_amount_usd"], True, pvp_win=True, multiplier=2, context=context)
+            save_user_data(match["opponent_id"])
         update_stats_on_bet(match["host_id"], match_id, match["bet_amount_usd"], False, context=context)
-        save_user_data(match["opponent_id"])
         
         result_text = (
             f"🎉 <b>@{match.get('opponent_username', 'Opponent')} WINS!</b>\n\n"
-            f"Host: {host_score} | Opponent: {opponent_score}\n"
+            f"Final Score: Opponent {opponent_wins_count} - {host_wins_count} Host\n"
             f"Prize: {currency_symbol}{prize_currency:.2f}"
         )
     
@@ -6373,12 +6457,20 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, from_
         "• <b>Predict</b>: <code>/predict amount up/down</code>\n"
         "💡 You can use 'all' instead of an amount to bet your entire balance!\n"
         "💡 All amounts are in your selected currency (see Settings).\n\n"
+        "<b>🎮 Single Emoji Games:</b>\n"
+        "• Access via Games → Emoji Games → Single Emoji Games\n"
+        "• Quick instant-result games: Darts, Soccer, Basket, Bowling, Slot\n\n"
         "<b>PvP & PvB Games:</b>\n"
-        "• <b>Dice, Darts, Football, Bowling</b>\n"
-        "  - vs Player: <code>/dice @user amount ftX</code>\n"
-        "  - vs Bot: Use <code>/games</code> menu\n\n"
+        "• <b>Dice, Darts, Football (Goal), Bowling</b>\n"
+        "  - <b>vs Player</b>: <code>/dice @user amount MX ftY</code>\n"
+        "     Example: <code>/dice @friend 5 M1 ft3</code> (Mode 1, First to 3)\n"
+        "  - <b>vs Bot</b>: Use <code>/games</code> menu\n"
+        "  - <b>Group Challenge</b> (Groups only): <code>/dice amount</code>\n"
+        "     Example: <code>/dice 10</code> creates a challenge in the group\n"
+        "     Others can accept or you can play with bot\n"
+        "• Same for: <code>/darts</code>, <code>/goal</code>, <code>/bowl</code>\n\n"
         "<b>Wallet & Withdrawals:</b>\n"
-        "• <code>/deposit</code> or <code>/bal</code>\n"
+        "• <code>/deposit</code> or <code>/bal</code> or <code>/bank</code> or <code>/hb</code>\n"
         "• Use the main menu for withdrawals (set withdrawal address in Settings first)\n"
         "• <code>/tip @user amount</code> or reply to a message\n"
         "• <code>/rain amount N</code> — Rain on N users\n"
@@ -6396,7 +6488,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, from_
         "• <code>/continue &lt;id&gt;</code> — Resume an active game\n\n"
         "<b>⚙️ Settings & Account:</b>\n"
         "• <code>/referral</code>, <code>/achievements</code>, <code>/level</code>\n"
-        "• <code>/language</code> — Change bot language (en/es)\n"
+        "• <code>/language</code> — Change bot language (en/es/fr/ru/hi/zh)\n"
         "• Use Settings menu to:\n"
         "  - Set your withdrawal address (USDT-BEP20)\n"
         "  - Change your display currency\n"
@@ -6698,7 +6790,7 @@ def generate_deposit_address_for_user(user_id: int, method: str):
         # Since we're given a WIF key, we need to use it differently
         # We'll use a hash-based derivation for child addresses
         import hashlib
-        from bip_utils import WifDecoder, Bip44Coins
+        from bip_utils import WifDecoder
         
         try:
             # Try to decode as WIF first
@@ -6724,7 +6816,7 @@ def generate_deposit_address_for_user(user_id: int, method: str):
             raise ValueError("Litecoin private key not configured")
         
         import hashlib
-        from bip_utils import WifDecoder, Bip44Coins
+        from bip_utils import WifDecoder
         
         try:
             # Try to decode as WIF first
@@ -6750,7 +6842,7 @@ def generate_deposit_address_for_user(user_id: int, method: str):
             raise ValueError("Dogecoin private key not configured")
         
         import hashlib
-        from bip_utils import WifDecoder, Bip44Coins
+        from bip_utils import WifDecoder
         
         try:
             # Try to decode as WIF first
@@ -6821,14 +6913,13 @@ def generate_deposit_address_for_user(user_id: int, method: str):
 def get_private_key_for_address_index(address_index, blockchain="eth"):
     """Get private key for address index - supports all blockchains"""
     import hashlib
+    from bip_utils import WifDecoder
     
     if blockchain in ["bsc", "eth", "polygon"]:
         bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY), Bip44Coins.ETHEREUM).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
         return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
     
     elif blockchain == "bitcoin":
-        from bip_utils import WifDecoder, Bip44Coins
-        
         try:
             # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_BTC, net_ver=Bip44Coins.BITCOIN.KeyNetVersions())
@@ -6847,8 +6938,6 @@ def get_private_key_for_address_index(address_index, blockchain="eth"):
             return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
     
     elif blockchain == "litecoin":
-        from bip_utils import WifDecoder, Bip44Coins
-        
         try:
             # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_LTC, net_ver=Bip44Coins.LITECOIN.KeyNetVersions())
@@ -6867,8 +6956,6 @@ def get_private_key_for_address_index(address_index, blockchain="eth"):
             return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
     
     elif blockchain == "dogecoin":
-        from bip_utils import WifDecoder, Bip44Coins
-        
         try:
             # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_DOGE, net_ver=Bip44Coins.DOGECOIN.KeyNetVersions())
@@ -10091,7 +10178,7 @@ def main():
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler(["bj", "blackjack"], blackjack_command)); app.add_handler(CommandHandler("flip", coin_flip_command))
     app.add_handler(CommandHandler(["roul", "roulette"], roulette_command)); app.add_handler(CommandHandler("dr", dice_roll_command))
-    app.add_handler(CommandHandler("sl", slots_command)); app.add_handler(CommandHandler("bank", bank_command))
+    app.add_handler(CommandHandler("sl", slots_command)); app.add_handler(CommandHandler("bank", bank_command)); app.add_handler(CommandHandler("hb", bank_command)) # hb is alias for bank
     app.add_handler(CommandHandler("rain", rain_command)); app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("users", users_command)); app.add_handler(CommandHandler("dice", dice_command))
     app.add_handler(CommandHandler("darts", darts_command)); app.add_handler(CommandHandler("goal", football_command))
@@ -10161,6 +10248,7 @@ def main():
     app.add_handler(CallbackQueryHandler(play_single_emoji_callback, pattern=r"^play_single_")) # NEW - Single emoji games
     app.add_handler(CallbackQueryHandler(group_challenge_mode_callback, pattern=r"^gc_mode_")) # NEW - Group challenge mode
     app.add_handler(CallbackQueryHandler(group_challenge_rolls_callback, pattern=r"^gc_rolls_")) # NEW - Group challenge rolls
+    app.add_handler(CallbackQueryHandler(group_challenge_target_callback, pattern=r"^gc_target_")) # NEW - Group challenge target score
     app.add_handler(CallbackQueryHandler(group_challenge_accept_callback, pattern=r"^gc_accept_")) # NEW - Accept group challenge
     app.add_handler(CallbackQueryHandler(group_challenge_playbot_callback, pattern=r"^gc_playbot_")) # NEW - Play with bot
     app.add_handler(CallbackQueryHandler(level_all_command, pattern=r"^level_all$")) # NEW
