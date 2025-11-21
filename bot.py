@@ -83,7 +83,11 @@ REFERRAL_DEPOSIT_COMMISSION_RATE = 0.005  # 0.5%
 REFERRAL_BET_COMMISSION_RATE = 0.001      # 0.1%
 
 # --- NEW CRYPTO DEPOSIT SYSTEM CONFIGURATION ---
-# LEAVE THESE BLANK - OWNER WILL FILL MANUALLY
+# MASTER WALLET 12-WORD RECOVERY PHRASE - OWNER WILL SET THIS MANUALLY
+# This single phrase will be used to generate addresses for all supported currencies
+MASTER_WALLET_RECOVERY_PHRASE = ""  # LEAVE BLANK - Owner will set this manually via configuration
+
+# Legacy individual private keys (DEPRECATED - kept for backward compatibility during migration)
 MASTER_PRIVATE_KEY_BTC = "L4EvH9hcT8QxYNviNpwrqpKrerdrhjk8KPqqsvegKn2wrxfMfCaN"  # Bitcoin master private key
 MASTER_PRIVATE_KEY_LTC = "L4EvH9hcT8QxYNviNpwrqpKrerdrhjk8KPqqsvegKn2wrxfMfCaN"  # Litecoin master private key  
 MASTER_PRIVATE_KEY_ETH = "bff07754e649090100b5746a68ea1e5a749aab304b14429d66341b0f458cd305"  # Ethereum master private key (for ETH, USDT-ERC20, POL)
@@ -241,23 +245,79 @@ LEVELS = [
     {"level": 12, "name": "Diamond III", "wager_required": 100000000, "reward": 51200, "rakeback_percentage": 0.12},
 ]
 ## NEW FEATURE - Language Support ##
-# For simplicity, strings are in a dict. For larger bots, JSON files are better.
+# Comprehensive language system with 6 supported languages
 LANGUAGES = {
-    "en": {
-        "welcome": "🎰 <b>Welcome to Telegram Casino & Escrow Bot!</b> 🎰\n\n👋 Hello {first_name}!\n\n...",
+    "en": {  # English
+        "language_name": "English 🇬🇧",
+        "welcome": "🎰 <b>Welcome to Telegram Casino & Escrow Bot!</b> 🎰",
         "daily_claim_success": "🎉 You have successfully claimed your daily bonus of ${amount:.2f}!",
         "daily_claim_wait": "⏳ You have already claimed your daily bonus. Please wait {hours}h {minutes}m before claiming again.",
-        "achievement_unlocked": "🏅 <b>Achievement Unlocked!</b> 🏅\n\n"
-                               "You have earned the <b>{emoji} {name}</b> badge!\n<i>{description}</i>"
-        # ... more strings
+        "achievement_unlocked": "🏅 <b>Achievement Unlocked!</b> 🏅\n\nYou have earned the <b>{emoji} {name}</b> badge!\n<i>{description}</i>",
+        "insufficient_balance": "❌ Insufficient balance. Please deposit to continue.",
+        "bet_placed": "🎲 Bet placed: ${amount:.2f}",
+        "you_won": "🎉 You won ${amount:.2f}!",
+        "you_lost": "😔 You lost. Better luck next time!",
+        "language_set": "✅ Language set to English"
     },
-    "es": {
-        "welcome": "🎰 <b>¡Bienvenido al Bot de Casino y Escrow de Telegram!</b> 🎰\n\n👋 ¡Hola {first_name}!\n\n...",
+    "es": {  # Spanish
+        "language_name": "Español 🇪🇸",
+        "welcome": "🎰 <b>¡Bienvenido al Bot de Casino y Escrow de Telegram!</b> 🎰",
         "daily_claim_success": "🎉 ¡Has reclamado con éxito tu bono diario de ${amount:.2f}!",
         "daily_claim_wait": "⏳ Ya has reclamado tu bono diario. Por favor, espera {hours}h {minutes}m antes de volver a reclamar.",
-        "achievement_unlocked": "🏅 <b>¡Logro Desbloqueado!</b> 🏅\n\n"
-                               "¡Has ganado la insignia <b>{emoji} {name}</b>!\n<i>{description}</i>"
-        # ... more strings
+        "achievement_unlocked": "🏅 <b>¡Logro Desbloqueado!</b> 🏅\n\n¡Has ganado la insignia <b>{emoji} {name}</b>!\n<i>{description}</i>",
+        "insufficient_balance": "❌ Saldo insuficiente. Por favor deposita para continuar.",
+        "bet_placed": "🎲 Apuesta realizada: ${amount:.2f}",
+        "you_won": "🎉 ¡Ganaste ${amount:.2f}!",
+        "you_lost": "😔 Perdiste. ¡Mejor suerte la próxima vez!",
+        "language_set": "✅ Idioma configurado a Español"
+    },
+    "fr": {  # French
+        "language_name": "Français 🇫🇷",
+        "welcome": "🎰 <b>Bienvenue au Bot de Casino et Escrow Telegram!</b> 🎰",
+        "daily_claim_success": "🎉 Vous avez réclamé avec succès votre bonus quotidien de ${amount:.2f}!",
+        "daily_claim_wait": "⏳ Vous avez déjà réclamé votre bonus quotidien. Veuillez attendre {hours}h {minutes}m avant de réclamer à nouveau.",
+        "achievement_unlocked": "🏅 <b>Succès Débloqué!</b> 🏅\n\nVous avez gagné le badge <b>{emoji} {name}</b>!\n<i>{description}</i>",
+        "insufficient_balance": "❌ Solde insuffisant. Veuillez déposer pour continuer.",
+        "bet_placed": "🎲 Pari placé: ${amount:.2f}",
+        "you_won": "🎉 Vous avez gagné ${amount:.2f}!",
+        "you_lost": "😔 Vous avez perdu. Meilleure chance la prochaine fois!",
+        "language_set": "✅ Langue définie sur Français"
+    },
+    "ru": {  # Russian
+        "language_name": "Русский 🇷🇺",
+        "welcome": "🎰 <b>Добро пожаловать в Telegram Casino & Escrow Bot!</b> 🎰",
+        "daily_claim_success": "🎉 Вы успешно получили ежедневный бонус ${amount:.2f}!",
+        "daily_claim_wait": "⏳ Вы уже получили свой ежедневный бонус. Подождите {hours}ч {minutes}м перед следующим получением.",
+        "achievement_unlocked": "🏅 <b>Достижение Разблокировано!</b> 🏅\n\nВы получили значок <b>{emoji} {name}</b>!\n<i>{description}</i>",
+        "insufficient_balance": "❌ Недостаточно средств. Пожалуйста, пополните счет.",
+        "bet_placed": "🎲 Ставка сделана: ${amount:.2f}",
+        "you_won": "🎉 Вы выиграли ${amount:.2f}!",
+        "you_lost": "😔 Вы проиграли. Удачи в следующий раз!",
+        "language_set": "✅ Язык установлен на Русский"
+    },
+    "hi": {  # Hindi
+        "language_name": "हिन्दी 🇮🇳",
+        "welcome": "🎰 <b>टेलीग्राम कैसीनो और एस्क्रो बॉट में आपका स्वागत है!</b> 🎰",
+        "daily_claim_success": "🎉 आपने सफलतापूर्वक ${amount:.2f} का दैनिक बोनस प्राप्त किया!",
+        "daily_claim_wait": "⏳ आपने पहले ही अपना दैनिक बोनस प्राप्त कर लिया है। कृपया {hours}घं {minutes}मि प्रतीक्षा करें।",
+        "achievement_unlocked": "🏅 <b>उपलब्धि अनलॉक!</b> 🏅\n\nआपने <b>{emoji} {name}</b> बैज अर्जित किया!\n<i>{description}</i>",
+        "insufficient_balance": "❌ अपर्याप्त शेष राशि। कृपया जारी रखने के लिए जमा करें।",
+        "bet_placed": "🎲 दांव लगाया गया: ${amount:.2f}",
+        "you_won": "🎉 आपने ${amount:.2f} जीता!",
+        "you_lost": "😔 आप हार गए। अगली बार के लिए शुभकामनाएं!",
+        "language_set": "✅ भाषा हिन्दी पर सेट की गई"
+    },
+    "zh": {  # Mandarin Chinese
+        "language_name": "中文 🇨🇳",
+        "welcome": "🎰 <b>欢迎来到Telegram赌场和托管机器人!</b> 🎰",
+        "daily_claim_success": "🎉 您已成功领取${amount:.2f}的每日奖金!",
+        "daily_claim_wait": "⏳ 您已经领取了每日奖金。请等待{hours}小时{minutes}分钟后再次领取。",
+        "achievement_unlocked": "🏅 <b>成就解锁!</b> 🏅\n\n您获得了<b>{emoji} {name}</b>徽章!\n<i>{description}</i>",
+        "insufficient_balance": "❌ 余额不足。请充值以继续。",
+        "bet_placed": "🎲 下注: ${amount:.2f}",
+        "you_won": "🎉 您赢了${amount:.2f}!",
+        "you_lost": "😔 您输了。祝下次好运!",
+        "language_set": "✅ 语言已设置为中文"
     }
 }
 DEFAULT_LANG = "en"
@@ -275,8 +335,8 @@ def get_text(key, lang_code, **kwargs):
  ADMIN_BROADCAST_MESSAGE, ADMIN_SET_HOUSE_BALANCE, ADMIN_LIMITS_CHOOSE_TYPE,
  ADMIN_LIMITS_CHOOSE_GAME, ADMIN_LIMITS_SET_AMOUNT,
  SETTINGS_RECOVERY_PIN, RECOVER_ASK_TOKEN, RECOVER_ASK_PIN,
- ADMIN_GIFT_CODE_AMOUNT, ADMIN_GIFT_CODE_CLAIMS, SETTINGS_WITHDRAWAL_ADDRESS, SETTINGS_WITHDRAWAL_ADDRESS_CHANGE,
- WITHDRAWAL_AMOUNT, WITHDRAWAL_APPROVAL_TXID) = range(23)
+ ADMIN_GIFT_CODE_AMOUNT, ADMIN_GIFT_CODE_CLAIMS, ADMIN_GIFT_CODE_WAGER, SETTINGS_WITHDRAWAL_ADDRESS, SETTINGS_WITHDRAWAL_ADDRESS_CHANGE,
+ WITHDRAWAL_AMOUNT, WITHDRAWAL_APPROVAL_TXID) = range(24)
 
 # --- GAME MULTIPLIERS AND CONFIGS ---
 
@@ -379,6 +439,57 @@ KENO_PAYOUTS = {
     9: {2: 1.06, 3: 1.26, 4: 1.64, 5: 2.42, 6: 7.27, 7: 48.48, 8: 242.42, 9: 969.69},
     10: {2: 1.06, 3: 1.16, 4: 1.26, 5: 1.74, 6: 3.39, 7: 12.6, 8: 48.48, 9: 242.42, 10: 969.69}
 }
+
+# --- SINGLE EMOJI GAMES CONFIGURATION ---
+# New single emoji games with Telegram's native dice/emoji animations
+SINGLE_EMOJI_GAMES = {
+    "darts": {
+        "emoji": "🎯",
+        "name": "Single Dart",
+        "dice_type": "dart",
+        "multiplier": 1.15,
+        "win_chance": 0.83,  # 83%
+        "win_condition": lambda value: value >= 3,  # Dart hits the table (values 3-6)
+        "win_description": "Dart hits the table"
+    },
+    "soccer": {
+        "emoji": "⚽️",
+        "name": "Single Soccer",
+        "dice_type": "football",
+        "multiplier": 1.53,
+        "win_chance": 0.60,  # 60%
+        "win_condition": lambda value: value in [3, 4, 5],  # Goal scored
+        "win_description": "Goal scored"
+    },
+    "basket": {
+        "emoji": "🏀",
+        "name": "Single Basket",
+        "dice_type": "basketball",
+        "multiplier": 2.25,
+        "win_chance": 0.40,  # 40%
+        "win_condition": lambda value: value in [4, 5],  # Ball goes in basket
+        "win_description": "Ball goes in"
+    },
+    "bowling": {
+        "emoji": "🎳",
+        "name": "Single Bowling",
+        "dice_type": "bowling",
+        "multiplier": 5.00,
+        "win_chance": 0.16,  # 16%
+        "win_condition": lambda value: value == 6,  # Strike
+        "win_description": "Strike!"
+    },
+    "slot": {
+        "emoji": "🎰",
+        "name": "Slot Machine",
+        "dice_type": "slot_machine",
+        "multiplier": 14.5,
+        "win_chance": 0.0625,  # 6.25%
+        "win_condition": lambda value: value in [1, 22, 43, 64],  # All same symbols (bar, grapes, lemon, seven)
+        "win_description": "Same symbols"
+    }
+}
+
 
 # --- Provably Fair System & Game ID Generation ---
 def generate_server_seed():
@@ -8206,8 +8317,9 @@ async def admin_limits_choose_type_step(update: Update, context: ContextTypes.DE
 
     all_games = [
         'blackjack', 'coin_flip', 'roulette', 'dice_roll', 'slots',
-        'predict', 'tower', 'mines', 'pvp_dice', 'pvp_darts',
-        'pvp_goal', 'pvp_bowl'
+        'predict', 'tower', 'mines', 'keno', 'limbo', 'highlow',
+        'pvp_dice', 'pvp_darts', 'pvp_goal', 'pvp_bowl',
+        'emoji_darts', 'emoji_soccer', 'emoji_basket', 'emoji_bowling', 'emoji_slot'
     ]
 
     keyboard = []
@@ -9331,6 +9443,19 @@ async def claim_gift_code_command(update: Update, context: ContextTypes.DEFAULT_
     if user.id in code_data["claimed_by"]:
         await update.message.reply_text("You have already claimed this gift code.")
         return
+    
+    # Check wager requirement
+    wager_requirement = code_data.get("wager_requirement", 0)
+    if wager_requirement > 0:
+        user_total_wagered = user_stats[user.id].get("bets", {}).get("amount", 0.0)
+        if user_total_wagered < wager_requirement:
+            await update.message.reply_text(
+                f"❌ You don't meet the wager requirement for this gift code.\n\n"
+                f"Required: ${wager_requirement:.2f} wagered\n"
+                f"Your total wagered: ${user_total_wagered:.2f}\n"
+                f"You need to wager ${wager_requirement - user_total_wagered:.2f} more in the casino to claim this code."
+            )
+            return
         
     # All checks passed, award the user
     amount = code_data["amount"]
@@ -9394,6 +9519,7 @@ def main():
             ADMIN_BROADCAST_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_broadcast_step)],
             ADMIN_GIFT_CODE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_gift_code_create_step2)],
             ADMIN_GIFT_CODE_CLAIMS: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_gift_code_create_step3)],
+            ADMIN_GIFT_CODE_WAGER: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_gift_code_create_step4)],
         },
         fallbacks=[
             CallbackQueryHandler(admin_dashboard_command, pattern="^admin_dashboard$"),
@@ -9937,7 +10063,9 @@ async def admin_gift_code_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         text += "No active gift codes."
     else:
         for code, data in gift_codes.items():
-            text += f"• <code>{code}</code>: ${data['amount']:.2f}, {data['claims_left']}/{data['total_claims']} left\n"
+            wager_req = data.get("wager_requirement", 0)
+            wager_text = f" (Wager: ${wager_req:.0f})" if wager_req > 0 else ""
+            text += f"• <code>{code}</code>: ${data['amount']:.2f}, {data['claims_left']}/{data['total_claims']} left{wager_text}\n"
             
     keyboard = [
         [InlineKeyboardButton("➕ Create New Code", callback_data="admin_gift_create")],
@@ -9968,20 +10096,47 @@ async def admin_gift_code_create_step3(update: Update, context: ContextTypes.DEF
     try:
         claims = int(update.message.text)
         if claims <= 0: raise ValueError
+        context.user_data['gift_code_claims'] = claims
+        await update.message.reply_text(
+            "Number of claims set. Now enter the wager requirement (in $).\n\n"
+            "Enter <b>0</b> for no wager requirement, or any positive number (e.g., 100 means users must have wagered $100 to claim).",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel", callback_data="admin_gift_codes")]]),
+            parse_mode=ParseMode.HTML
+        )
+        return ADMIN_GIFT_CODE_WAGER
+    except ValueError:
+        await update.message.reply_text("Invalid number. Please enter a positive integer.")
+        return ADMIN_GIFT_CODE_CLAIMS
+
+async def admin_gift_code_create_step4(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        wager_requirement = float(update.message.text)
+        if wager_requirement < 0: raise ValueError
+        
         amount = context.user_data['gift_code_amount']
+        claims = context.user_data['gift_code_claims']
         
         code = f"GIFT-{''.join(random.choices(string.ascii_uppercase + string.digits, k=8))}"
         gift_codes[code] = {
             "amount": amount,
             "total_claims": claims,
             "claims_left": claims,
+            "wager_requirement": wager_requirement,
             "claimed_by": [],
             "created_by": update.effective_user.id,
             "created_at": str(datetime.now(timezone.utc))
         }
         save_gift_code(code)
         
-        await update.message.reply_text(f"✅ Gift code created successfully!\n\nCode: <code>{code}</code>\nAmount: ${amount:.2f}\nUses: {claims}")
+        wager_text = f"Wager requirement: ${wager_requirement:.2f}" if wager_requirement > 0 else "No wager requirement"
+        await update.message.reply_text(
+            f"✅ Gift code created successfully!\n\n"
+            f"Code: <code>{code}</code>\n"
+            f"Amount: ${amount:.2f}\n"
+            f"Uses: {claims}\n"
+            f"{wager_text}",
+            parse_mode=ParseMode.HTML
+        )
         context.user_data.clear()
         
         # Fake query to go back to the menu
@@ -9994,8 +10149,8 @@ async def admin_gift_code_create_step3(update: Update, context: ContextTypes.DEF
         
         return ConversationHandler.END
     except ValueError:
-        await update.message.reply_text("Invalid number. Please enter a positive integer.")
-        return ADMIN_GIFT_CODE_CLAIMS
+        await update.message.reply_text("Invalid number. Please enter 0 or a positive number.")
+        return ADMIN_GIFT_CODE_WAGER
 
 if __name__ == "__main__":
     main()
