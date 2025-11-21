@@ -8534,9 +8534,12 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if lang_code in LANGUAGES:
         user_stats[user.id]["userinfo"]["language"] = lang_code
         save_user_data(user.id)
-        await query.edit_message_text(f"Language set to {lang_code}.")
+        language_name = LANGUAGES[lang_code].get("language_name", lang_code)
+        await query.answer(f"Language set to {language_name}", show_alert=True)
+        # Go back to settings menu
+        await settings_command(update, context)
     else:
-        await query.edit_message_text("Invalid language code.")
+        await query.answer("Invalid language code.", show_alert=True)
 
 async def currency_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle currency selection"""
@@ -9448,17 +9451,23 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("💱 Currency", callback_data="settings_currency")],
+        [InlineKeyboardButton("🌐 Language", callback_data="settings_language")],
         [InlineKeyboardButton("💳 Withdrawal Address", callback_data="settings_withdrawal")],
         [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")]
     ]
     
     user_currency = get_user_currency(user.id)
     currency_symbol = CURRENCY_SYMBOLS.get(user_currency, "$")
+    user_language = user_stats[user.id].get("userinfo", {}).get("language", "en")
+    language_name = LANGUAGES.get(user_language, {}).get("language_name", "English 🇬🇧")
     withdrawal_address = user_stats[user.id].get("withdrawal_address")
     withdrawal_status = f"<b>Withdrawal Address:</b> {'✅ Set' if withdrawal_address else '❌ Not Set'}"
     
     await query.edit_message_text(
-        f"⚙️ <b>Settings</b>\n\nManage your account settings here.\n\n<b>Current Currency:</b> {user_currency} ({currency_symbol})\n{withdrawal_status}",
+        f"⚙️ <b>Settings</b>\n\nManage your account settings here.\n\n"
+        f"<b>Current Currency:</b> {user_currency} ({currency_symbol})\n"
+        f"<b>Current Language:</b> {language_name}\n"
+        f"{withdrawal_status}",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -9484,6 +9493,25 @@ async def settings_callback_handler(update: Update, context: ContextTypes.DEFAUL
             "💱 <b>Select Currency</b>\n\n"
             "Choose your preferred currency. All amounts will be displayed in this currency.\n"
             "Your wallet balance is stored in USD and converted for display.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
+    if action == "language":
+        await ensure_user_in_wallets(user.id, user.username, context=context)
+        current_language = user_stats[user.id].get("userinfo", {}).get("language", "en")
+        keyboard = []
+        for lang_code, lang_data in LANGUAGES.items():
+            text = lang_data.get("language_name", lang_code)
+            if lang_code == current_language:
+                text += " ✓"
+            keyboard.append([InlineKeyboardButton(text, callback_data=f"lang_{lang_code}")])
+        keyboard.append([InlineKeyboardButton("🔙 Back to Settings", callback_data="main_settings")])
+        
+        await query.edit_message_text(
+            "🌐 <b>Select Language</b>\n\n"
+            "Choose your preferred language. The bot will respond to you in this language.",
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
