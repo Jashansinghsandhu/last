@@ -83,7 +83,11 @@ REFERRAL_DEPOSIT_COMMISSION_RATE = 0.005  # 0.5%
 REFERRAL_BET_COMMISSION_RATE = 0.001      # 0.1%
 
 # --- NEW CRYPTO DEPOSIT SYSTEM CONFIGURATION ---
-# LEAVE THESE BLANK - OWNER WILL FILL MANUALLY
+# MASTER WALLET 12-WORD RECOVERY PHRASE - OWNER WILL SET THIS MANUALLY
+# This single phrase will be used to generate addresses for all supported currencies
+MASTER_WALLET_RECOVERY_PHRASE = ""  # LEAVE BLANK - Owner will set this manually via configuration
+
+# Legacy individual private keys (DEPRECATED - kept for backward compatibility during migration)
 MASTER_PRIVATE_KEY_BTC = "L4EvH9hcT8QxYNviNpwrqpKrerdrhjk8KPqqsvegKn2wrxfMfCaN"  # Bitcoin master private key
 MASTER_PRIVATE_KEY_LTC = "L4EvH9hcT8QxYNviNpwrqpKrerdrhjk8KPqqsvegKn2wrxfMfCaN"  # Litecoin master private key  
 MASTER_PRIVATE_KEY_ETH = "bff07754e649090100b5746a68ea1e5a749aab304b14429d66341b0f458cd305"  # Ethereum master private key (for ETH, USDT-ERC20, POL)
@@ -241,23 +245,79 @@ LEVELS = [
     {"level": 12, "name": "Diamond III", "wager_required": 100000000, "reward": 51200, "rakeback_percentage": 0.12},
 ]
 ## NEW FEATURE - Language Support ##
-# For simplicity, strings are in a dict. For larger bots, JSON files are better.
+# Comprehensive language system with 6 supported languages
 LANGUAGES = {
-    "en": {
-        "welcome": "🎰 <b>Welcome to Telegram Casino & Escrow Bot!</b> 🎰\n\n👋 Hello {first_name}!\n\n...",
+    "en": {  # English
+        "language_name": "English 🇬🇧",
+        "welcome": "🎰 <b>Welcome to Telegram Casino & Escrow Bot!</b> 🎰",
         "daily_claim_success": "🎉 You have successfully claimed your daily bonus of ${amount:.2f}!",
         "daily_claim_wait": "⏳ You have already claimed your daily bonus. Please wait {hours}h {minutes}m before claiming again.",
-        "achievement_unlocked": "🏅 <b>Achievement Unlocked!</b> 🏅\n\n"
-                               "You have earned the <b>{emoji} {name}</b> badge!\n<i>{description}</i>"
-        # ... more strings
+        "achievement_unlocked": "🏅 <b>Achievement Unlocked!</b> 🏅\n\nYou have earned the <b>{emoji} {name}</b> badge!\n<i>{description}</i>",
+        "insufficient_balance": "❌ Insufficient balance. Please deposit to continue.",
+        "bet_placed": "🎲 Bet placed: ${amount:.2f}",
+        "you_won": "🎉 You won ${amount:.2f}!",
+        "you_lost": "😔 You lost. Better luck next time!",
+        "language_set": "✅ Language set to English"
     },
-    "es": {
-        "welcome": "🎰 <b>¡Bienvenido al Bot de Casino y Escrow de Telegram!</b> 🎰\n\n👋 ¡Hola {first_name}!\n\n...",
+    "es": {  # Spanish
+        "language_name": "Español 🇪🇸",
+        "welcome": "🎰 <b>¡Bienvenido al Bot de Casino y Escrow de Telegram!</b> 🎰",
         "daily_claim_success": "🎉 ¡Has reclamado con éxito tu bono diario de ${amount:.2f}!",
         "daily_claim_wait": "⏳ Ya has reclamado tu bono diario. Por favor, espera {hours}h {minutes}m antes de volver a reclamar.",
-        "achievement_unlocked": "🏅 <b>¡Logro Desbloqueado!</b> 🏅\n\n"
-                               "¡Has ganado la insignia <b>{emoji} {name}</b>!\n<i>{description}</i>"
-        # ... more strings
+        "achievement_unlocked": "🏅 <b>¡Logro Desbloqueado!</b> 🏅\n\n¡Has ganado la insignia <b>{emoji} {name}</b>!\n<i>{description}</i>",
+        "insufficient_balance": "❌ Saldo insuficiente. Por favor deposita para continuar.",
+        "bet_placed": "🎲 Apuesta realizada: ${amount:.2f}",
+        "you_won": "🎉 ¡Ganaste ${amount:.2f}!",
+        "you_lost": "😔 Perdiste. ¡Mejor suerte la próxima vez!",
+        "language_set": "✅ Idioma configurado a Español"
+    },
+    "fr": {  # French
+        "language_name": "Français 🇫🇷",
+        "welcome": "🎰 <b>Bienvenue au Bot de Casino et Escrow Telegram!</b> 🎰",
+        "daily_claim_success": "🎉 Vous avez réclamé avec succès votre bonus quotidien de ${amount:.2f}!",
+        "daily_claim_wait": "⏳ Vous avez déjà réclamé votre bonus quotidien. Veuillez attendre {hours}h {minutes}m avant de réclamer à nouveau.",
+        "achievement_unlocked": "🏅 <b>Succès Débloqué!</b> 🏅\n\nVous avez gagné le badge <b>{emoji} {name}</b>!\n<i>{description}</i>",
+        "insufficient_balance": "❌ Solde insuffisant. Veuillez déposer pour continuer.",
+        "bet_placed": "🎲 Pari placé: ${amount:.2f}",
+        "you_won": "🎉 Vous avez gagné ${amount:.2f}!",
+        "you_lost": "😔 Vous avez perdu. Meilleure chance la prochaine fois!",
+        "language_set": "✅ Langue définie sur Français"
+    },
+    "ru": {  # Russian
+        "language_name": "Русский 🇷🇺",
+        "welcome": "🎰 <b>Добро пожаловать в Telegram Casino & Escrow Bot!</b> 🎰",
+        "daily_claim_success": "🎉 Вы успешно получили ежедневный бонус ${amount:.2f}!",
+        "daily_claim_wait": "⏳ Вы уже получили свой ежедневный бонус. Подождите {hours}ч {minutes}м перед следующим получением.",
+        "achievement_unlocked": "🏅 <b>Достижение Разблокировано!</b> 🏅\n\nВы получили значок <b>{emoji} {name}</b>!\n<i>{description}</i>",
+        "insufficient_balance": "❌ Недостаточно средств. Пожалуйста, пополните счет.",
+        "bet_placed": "🎲 Ставка сделана: ${amount:.2f}",
+        "you_won": "🎉 Вы выиграли ${amount:.2f}!",
+        "you_lost": "😔 Вы проиграли. Удачи в следующий раз!",
+        "language_set": "✅ Язык установлен на Русский"
+    },
+    "hi": {  # Hindi
+        "language_name": "हिन्दी 🇮🇳",
+        "welcome": "🎰 <b>टेलीग्राम कैसीनो और एस्क्रो बॉट में आपका स्वागत है!</b> 🎰",
+        "daily_claim_success": "🎉 आपने सफलतापूर्वक ${amount:.2f} का दैनिक बोनस प्राप्त किया!",
+        "daily_claim_wait": "⏳ आपने पहले ही अपना दैनिक बोनस प्राप्त कर लिया है। कृपया {hours}घं {minutes}मि प्रतीक्षा करें।",
+        "achievement_unlocked": "🏅 <b>उपलब्धि अनलॉक!</b> 🏅\n\nआपने <b>{emoji} {name}</b> बैज अर्जित किया!\n<i>{description}</i>",
+        "insufficient_balance": "❌ अपर्याप्त शेष राशि। कृपया जारी रखने के लिए जमा करें।",
+        "bet_placed": "🎲 दांव लगाया गया: ${amount:.2f}",
+        "you_won": "🎉 आपने ${amount:.2f} जीता!",
+        "you_lost": "😔 आप हार गए। अगली बार के लिए शुभकामनाएं!",
+        "language_set": "✅ भाषा हिन्दी पर सेट की गई"
+    },
+    "zh": {  # Mandarin Chinese
+        "language_name": "中文 🇨🇳",
+        "welcome": "🎰 <b>欢迎来到Telegram赌场和托管机器人!</b> 🎰",
+        "daily_claim_success": "🎉 您已成功领取${amount:.2f}的每日奖金!",
+        "daily_claim_wait": "⏳ 您已经领取了每日奖金。请等待{hours}小时{minutes}分钟后再次领取。",
+        "achievement_unlocked": "🏅 <b>成就解锁!</b> 🏅\n\n您获得了<b>{emoji} {name}</b>徽章!\n<i>{description}</i>",
+        "insufficient_balance": "❌ 余额不足。请充值以继续。",
+        "bet_placed": "🎲 下注: ${amount:.2f}",
+        "you_won": "🎉 您赢了${amount:.2f}!",
+        "you_lost": "😔 您输了。祝下次好运!",
+        "language_set": "✅ 语言已设置为中文"
     }
 }
 DEFAULT_LANG = "en"
@@ -275,8 +335,8 @@ def get_text(key, lang_code, **kwargs):
  ADMIN_BROADCAST_MESSAGE, ADMIN_SET_HOUSE_BALANCE, ADMIN_LIMITS_CHOOSE_TYPE,
  ADMIN_LIMITS_CHOOSE_GAME, ADMIN_LIMITS_SET_AMOUNT,
  SETTINGS_RECOVERY_PIN, RECOVER_ASK_TOKEN, RECOVER_ASK_PIN,
- ADMIN_GIFT_CODE_AMOUNT, ADMIN_GIFT_CODE_CLAIMS, SETTINGS_WITHDRAWAL_ADDRESS, SETTINGS_WITHDRAWAL_ADDRESS_CHANGE,
- WITHDRAWAL_AMOUNT, WITHDRAWAL_APPROVAL_TXID) = range(23)
+ ADMIN_GIFT_CODE_AMOUNT, ADMIN_GIFT_CODE_CLAIMS, ADMIN_GIFT_CODE_WAGER, SETTINGS_WITHDRAWAL_ADDRESS, SETTINGS_WITHDRAWAL_ADDRESS_CHANGE,
+ WITHDRAWAL_AMOUNT, WITHDRAWAL_APPROVAL_TXID) = range(24)
 
 # --- GAME MULTIPLIERS AND CONFIGS ---
 
@@ -379,6 +439,57 @@ KENO_PAYOUTS = {
     9: {2: 1.06, 3: 1.26, 4: 1.64, 5: 2.42, 6: 7.27, 7: 48.48, 8: 242.42, 9: 969.69},
     10: {2: 1.06, 3: 1.16, 4: 1.26, 5: 1.74, 6: 3.39, 7: 12.6, 8: 48.48, 9: 242.42, 10: 969.69}
 }
+
+# --- SINGLE EMOJI GAMES CONFIGURATION ---
+# New single emoji games with Telegram's native dice/emoji animations
+SINGLE_EMOJI_GAMES = {
+    "darts": {
+        "emoji": "🎯",
+        "name": "Single Dart",
+        "dice_type": "dart",
+        "multiplier": 1.15,
+        "win_chance": 0.83,  # 83%
+        "win_condition": lambda value: value >= 3,  # Dart hits the table (values 3-6)
+        "win_description": "Dart hits the table"
+    },
+    "soccer": {
+        "emoji": "⚽️",
+        "name": "Single Soccer",
+        "dice_type": "football",
+        "multiplier": 1.53,
+        "win_chance": 0.60,  # 60%
+        "win_condition": lambda value: value in [3, 4, 5],  # Goal scored
+        "win_description": "Goal scored"
+    },
+    "basket": {
+        "emoji": "🏀",
+        "name": "Single Basket",
+        "dice_type": "basketball",
+        "multiplier": 2.25,
+        "win_chance": 0.40,  # 40%
+        "win_condition": lambda value: value in [4, 5],  # Ball goes in basket
+        "win_description": "Ball goes in"
+    },
+    "bowling": {
+        "emoji": "🎳",
+        "name": "Single Bowling",
+        "dice_type": "bowling",
+        "multiplier": 5.00,
+        "win_chance": 0.16,  # 16%
+        "win_condition": lambda value: value == 6,  # Strike
+        "win_description": "Strike!"
+    },
+    "slot": {
+        "emoji": "🎰",
+        "name": "Slot Machine",
+        "dice_type": "slot_machine",
+        "multiplier": 14.5,
+        "win_chance": 0.0625,  # 6.25%
+        "win_condition": lambda value: value in [1, 22, 43, 64],  # All same symbols (bar, grapes, lemon, seven)
+        "win_description": "Same symbols"
+    }
+}
+
 
 # --- Provably Fair System & Game ID Generation ---
 def generate_server_seed():
@@ -1533,7 +1644,18 @@ async def games_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def games_category_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    category = query.data.split('_')[-1] # house or emoji
+    
+    # Extract category from callback data
+    if query.data == "games_category_emoji":
+        category = "emoji"
+    elif query.data == "games_emoji_regular":
+        category = "emoji-regular"
+    elif query.data == "games_emoji_single":
+        category = "emoji-single"
+    elif query.data == "games_category_house":
+        category = "house"
+    else:
+        category = query.data.split('_')[-1]
 
     if category == "house":
         text = "🏠 <b>House Games</b>\n\nChoose a game to see how to play:"
@@ -1551,13 +1673,30 @@ async def games_category_callback(update: Update, context: ContextTypes.DEFAULT_
             [InlineKeyboardButton("🔙 Back to Categories", callback_data="main_games")]
         ]
     elif category == "emoji":
-        text = "😀 <b>Emoji Games</b>\n\nChoose a game to see how to play:"
+        text = "😀 <b>Emoji Games</b>\n\nChoose a category:"
+        keyboard = [
+            [InlineKeyboardButton("🎮 Regular Games", callback_data="games_emoji_regular")],
+            [InlineKeyboardButton("🎯 Single Emoji Games", callback_data="games_emoji_single")],
+            [InlineKeyboardButton("🔙 Back to Categories", callback_data="main_games")]
+        ]
+    elif category == "emoji-regular":
+        text = "🎮 <b>Regular Emoji Games</b>\n\nChoose a game to see how to play:"
         keyboard = [
             [InlineKeyboardButton("🎲 Dice", callback_data="game_dice_bot")],
             [InlineKeyboardButton("🎯 Darts", callback_data="game_darts")],
             [InlineKeyboardButton("⚽ Football", callback_data="game_football")],
             [InlineKeyboardButton("🎳 Bowling", callback_data="game_bowling")],
-            [InlineKeyboardButton("🔙 Back to Categories", callback_data="main_games")]
+            [InlineKeyboardButton("🔙 Back to Emoji Games", callback_data="games_category_emoji")]
+        ]
+    elif category == "emoji-single":
+        text = "🎯 <b>Single Emoji Games</b>\n\nQuick games with instant results!\n\nHow to play: Choose a game, set your bet, and watch the emoji!"
+        keyboard = [
+            [InlineKeyboardButton("🎯 Darts (1.15x)", callback_data="game_single_darts")],
+            [InlineKeyboardButton("⚽ Soccer (1.53x)", callback_data="game_single_soccer")],
+            [InlineKeyboardButton("🏀 Basket (2.25x)", callback_data="game_single_basket")],
+            [InlineKeyboardButton("🎳 Bowling (5.00x)", callback_data="game_single_bowling")],
+            [InlineKeyboardButton("🎰 Slot (14.5x)", callback_data="game_single_slot")],
+            [InlineKeyboardButton("🔙 Back to Emoji Games", callback_data="games_category_emoji")]
         ]
     else:
         return
@@ -1881,6 +2020,30 @@ async def game_info_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back to House Games", callback_data="games_category_house")]])
         )
+
+    # Single Emoji Games
+    elif data.startswith("game_single_"):
+        game_key = data.replace("game_single_", "")
+        if game_key in SINGLE_EMOJI_GAMES:
+            game_config = SINGLE_EMOJI_GAMES[game_key]
+            await query.edit_message_text(
+                f"{game_config['emoji']} <b>{game_config['name']}</b>\n\n"
+                f"<b>How to play:</b>\n"
+                f"• Quick instant-result game\n"
+                f"• Win when: {game_config['win_description']}\n"
+                f"• Multiplier: {game_config['multiplier']}x\n"
+                f"• Win chance: {game_config['win_chance']*100:.1f}%\n\n"
+                f"<b>How to start:</b>\n"
+                f"1. Tap 'Play Game' below\n"
+                f"2. Enter your bet amount\n"
+                f"3. Watch the {game_config['emoji']} animation!\n\n"
+                f"Simple, fast, and fun!",
+                parse_mode=ParseMode.HTML,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(f"🎮 Play {game_config['emoji']}", callback_data=f"play_single_{game_key}")],
+                    [InlineKeyboardButton("🔙 Back", callback_data="games_category_emoji-single")]
+                ])
+            )
 
     # PvP games
     elif data.startswith("game_"):
@@ -3200,8 +3363,14 @@ async def dice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
-    # Check if arguments are provided (PvP format: /dice @username amount MX ftY)
+    # Check if in a group and has bet amount (new group challenge feature)
     message_text = update.message.text.strip().split()
+    if update.effective_chat.type in ['group', 'supergroup'] and len(message_text) == 2:
+        # New group challenge format: /dice amount
+        await create_group_challenge(update, context, "dice")
+        return
+    
+    # Check if arguments are provided (PvP format: /dice @username amount MX ftY)
     if len(message_text) > 1:
         # Arguments provided, treat as PvP command
         await generic_emoji_game_command(update, context, "dice")
@@ -3226,8 +3395,14 @@ async def darts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
-    # Check if arguments are provided (PvP format: /darts @username amount MX ftY)
+    # Check if in a group and has bet amount (new group challenge feature)
     message_text = update.message.text.strip().split()
+    if update.effective_chat.type in ['group', 'supergroup'] and len(message_text) == 2:
+        # New group challenge format: /darts amount
+        await create_group_challenge(update, context, "darts")
+        return
+    
+    # Check if arguments are provided (PvP format: /darts @username amount MX ftY)
     if len(message_text) > 1:
         # Arguments provided, treat as PvP command
         await generic_emoji_game_command(update, context, "darts")
@@ -3252,8 +3427,14 @@ async def football_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
-    # Check if arguments are provided (PvP format: /goal @username amount MX ftY)
+    # Check if in a group and has bet amount (new group challenge feature)
     message_text = update.message.text.strip().split()
+    if update.effective_chat.type in ['group', 'supergroup'] and len(message_text) == 2:
+        # New group challenge format: /goal amount
+        await create_group_challenge(update, context, "goal")
+        return
+    
+    # Check if arguments are provided (PvP format: /goal @username amount MX ftY)
     if len(message_text) > 1:
         # Arguments provided, treat as PvP command
         await generic_emoji_game_command(update, context, "goal")
@@ -3278,8 +3459,14 @@ async def bowling_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     await ensure_user_in_wallets(user.id, user.username, context=context)
     
-    # Check if arguments are provided (PvP format: /bowl @username amount MX ftY)
+    # Check if in a group and has bet amount (new group challenge feature)
     message_text = update.message.text.strip().split()
+    if update.effective_chat.type in ['group', 'supergroup'] and len(message_text) == 2:
+        # New group challenge format: /bowl amount
+        await create_group_challenge(update, context, "bowl")
+        return
+    
+    # Check if arguments are provided (PvP format: /bowl @username amount MX ftY)
     if len(message_text) > 1:
         # Arguments provided, treat as PvP command
         await generic_emoji_game_command(update, context, "bowl")
@@ -3297,6 +3484,474 @@ async def bowling_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Who do you want to play against?",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# --- SINGLE EMOJI GAMES ---
+# Callback handler for "Play" button in single emoji games
+async def play_single_emoji_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    game_key = query.data.replace("play_single_", "")
+    if game_key not in SINGLE_EMOJI_GAMES:
+        await query.edit_message_text("Game not found.")
+        return
+    
+    game_config = SINGLE_EMOJI_GAMES[game_key]
+    context.user_data['single_emoji_game'] = game_key
+    context.user_data['awaiting_single_emoji_bet'] = True
+    
+    await query.edit_message_text(
+        f"{game_config['emoji']} <b>{game_config['name']}</b>\n\n"
+        f"Enter your bet amount (or 'all'):\n\n"
+        f"Multiplier: {game_config['multiplier']}x\n"
+        f"Win chance: {game_config['win_chance']*100:.1f}%",
+        parse_mode=ParseMode.HTML
+    )
+
+# Play single emoji game (called after bet amount is entered)
+async def play_single_emoji_game(update: Update, context: ContextTypes.DEFAULT_TYPE, game_key: str, bet_amount_usd: float, bet_amount_currency: float, currency: str):
+    user = update.effective_user
+    await ensure_user_in_wallets(user.id, user.username, context=context)
+    
+    if game_key not in SINGLE_EMOJI_GAMES:
+        await update.message.reply_text("Invalid game.")
+        return
+    
+    game_config = SINGLE_EMOJI_GAMES[game_key]
+    
+    # Check bet limits
+    if not await check_bet_limits(update, bet_amount_usd, f'emoji_{game_key}'):
+        return
+    
+    # Deduct bet
+    user_wallets[user.id] -= bet_amount_usd
+    save_user_data(user.id)
+    
+    # Send the dice/emoji animation
+    dice_msg = await update.message.reply_dice(emoji=game_config['dice_type'])
+    
+    # Wait for the animation to complete
+    await asyncio.sleep(4)
+    
+    # Check if won
+    dice_value = dice_msg.dice.value
+    won = game_config['win_condition'](dice_value)
+    
+    game_id = generate_unique_id("SE")
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, "$")
+    formatted_bet = f"{currency_symbol}{bet_amount_currency:.2f}"
+    
+    if won:
+        winnings_usd = bet_amount_usd * game_config['multiplier']
+        winnings_currency = bet_amount_currency * game_config['multiplier']
+        user_wallets[user.id] += winnings_usd
+        update_stats_on_bet(user.id, game_id, bet_amount_usd, True, multiplier=game_config['multiplier'], context=context)
+        update_pnl(user.id)
+        save_user_data(user.id)
+        
+        await update.message.reply_text(
+            f"🎉 <b>YOU WON!</b>\n\n"
+            f"{game_config['emoji']} {game_config['win_description']}!\n"
+            f"Bet: {formatted_bet}\n"
+            f"Won: {currency_symbol}{winnings_currency:.2f} ({game_config['multiplier']}x)\n\n"
+            f"Game ID: <code>{game_id}</code>",
+            parse_mode=ParseMode.HTML
+        )
+    else:
+        update_stats_on_bet(user.id, game_id, bet_amount_usd, False, multiplier=0, context=context)
+        update_pnl(user.id)
+        save_user_data(user.id)
+        
+        await update.message.reply_text(
+            f"😔 <b>You lost</b>\n\n"
+            f"Better luck next time!\n"
+            f"Lost: {formatted_bet}\n\n"
+            f"Game ID: <code>{game_id}</code>",
+            parse_mode=ParseMode.HTML
+        )
+
+# --- GROUP CHALLENGE SYSTEM ---
+# Create a group challenge that can be accepted by others
+async def create_group_challenge(update: Update, context: ContextTypes.DEFAULT_TYPE, game_type: str):
+    """Create a group PvP challenge with mode and rolls selection"""
+    user = update.effective_user
+    message_text = update.message.text.strip().split()
+    
+    try:
+        bet_amount_usd, bet_amount_currency, currency = parse_bet_amount(message_text[1], user.id)
+    except (ValueError, IndexError):
+        await update.message.reply_text("Usage: /{} <amount>\nExample: /{} 5 or /{} all".format(game_type, game_type, game_type))
+        return
+    
+    if user_wallets.get(user.id, 0.0) < bet_amount_usd:
+        await send_insufficient_balance_message(update)
+        return
+    
+    # Show mode and rolls selection
+    keyboard = [
+        [InlineKeyboardButton("🎮 Normal Mode", callback_data=f"gc_mode_{game_type}_normal_{bet_amount_usd}_{bet_amount_currency}_{currency}")],
+        [InlineKeyboardButton("🔥 Crazy Mode", callback_data=f"gc_mode_{game_type}_crazy_{bet_amount_usd}_{bet_amount_currency}_{currency}")],
+    ]
+    
+    await update.message.reply_text(
+        f"🎯 <b>Create {game_type.upper()} Challenge</b>\n\n"
+        f"Select game mode:",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# Callback for mode selection
+async def group_challenge_mode_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    parts = query.data.split("_")
+    game_type = parts[2]
+    mode = parts[3]
+    bet_amount_usd = float(parts[4])
+    bet_amount_currency = float(parts[5])
+    currency = parts[6]
+    
+    # Show number of rolls selection
+    keyboard = [
+        [InlineKeyboardButton("1 Roll", callback_data=f"gc_rolls_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_1")],
+        [InlineKeyboardButton("2 Rolls", callback_data=f"gc_rolls_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_2")],
+        [InlineKeyboardButton("3 Rolls", callback_data=f"gc_rolls_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_3")],
+    ]
+    
+    await query.edit_message_text(
+        f"🎯 <b>Create {game_type.upper()} Challenge</b>\n\n"
+        f"Mode: {mode.title()}\n"
+        f"Select number of rolls:",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# Callback for rolls selection - show target score selection
+async def group_challenge_rolls_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    parts = query.data.split("_")
+    game_type = parts[2]
+    mode = parts[3]
+    bet_amount_usd = float(parts[4])
+    bet_amount_currency = float(parts[5])
+    currency = parts[6]
+    rolls = int(parts[7])
+    
+    # Show target score (first to X) selection
+    keyboard = [
+        [InlineKeyboardButton("First to 1", callback_data=f"gc_target_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_{rolls}_1")],
+        [InlineKeyboardButton("First to 2", callback_data=f"gc_target_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_{rolls}_2")],
+        [InlineKeyboardButton("First to 3", callback_data=f"gc_target_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_{rolls}_3")],
+        [InlineKeyboardButton("First to 5", callback_data=f"gc_target_{game_type}_{mode}_{bet_amount_usd}_{bet_amount_currency}_{currency}_{rolls}_5")],
+    ]
+    
+    await query.edit_message_text(
+        f"🎯 <b>Create {game_type.upper()} Challenge</b>\n\n"
+        f"Mode: {mode.title()}\n"
+        f"Rolls: {rolls}\n"
+        f"Select target score (First to X wins):",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+# Callback for target score selection and challenge creation
+async def group_challenge_target_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    
+    parts = query.data.split("_")
+    game_type = parts[2]
+    mode = parts[3]
+    bet_amount_usd = float(parts[4])
+    bet_amount_currency = float(parts[5])
+    currency = parts[6]
+    rolls = int(parts[7])
+    target_score = int(parts[8])
+    
+    await ensure_user_in_wallets(user.id, user.username, context=context)
+    
+    # Final check balance
+    if user_wallets.get(user.id, 0.0) < bet_amount_usd:
+        await query.edit_message_text("❌ Insufficient balance to create this challenge.")
+        return
+    
+    # Create the challenge
+    match_id = generate_unique_id("GC")
+    emoji_map = {"dice": "🎲", "darts": "🎯", "goal": "⚽", "bowl": "🎳"}
+    emoji = emoji_map.get(game_type, "🎮")
+    
+    game_sessions[match_id] = {
+        "id": match_id,
+        "game_type": f"group_challenge_{game_type}",
+        "chat_id": update.effective_chat.id,
+        "host_id": user.id,
+        "host_username": user.username or f"User_{user.id}",
+        "opponent_id": None,
+        "bet_amount_usd": bet_amount_usd,
+        "bet_amount_currency": bet_amount_currency,
+        "currency": currency,
+        "mode": mode,
+        "rolls": rolls,
+        "target_score": target_score,
+        "status": "pending",
+        "timestamp": str(datetime.now(timezone.utc))
+    }
+    
+    currency_symbol = CURRENCY_SYMBOLS.get(currency, "$")
+    formatted_bet = f"{currency_symbol}{bet_amount_currency:.2f}"
+    mode_desc = "Highest wins" if mode == "normal" else "Lowest wins"
+    
+    # Pin the challenge message
+    challenge_msg = await query.message.reply_text(
+        f"{emoji} <b>GROUP CHALLENGE!</b> {emoji}\n\n"
+        f"🎮 Game: {game_type.upper()}\n"
+        f"👤 Host: @{user.username or user.id}\n"
+        f"💰 Bet: {formatted_bet}\n"
+        f"🎯 Mode: {mode.title()} ({mode_desc})\n"
+        f"🔢 Rolls: {rolls}\n"
+        f"🏆 Target: First to {target_score}\n"
+        f"🆔 Match ID: <code>{match_id}</code>\n\n"
+        f"Tap a button below to join!",
+        parse_mode=ParseMode.HTML,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Accept Challenge", callback_data=f"gc_accept_{match_id}")],
+            [InlineKeyboardButton("🤖 Play with Bot (Host Only)", callback_data=f"gc_playbot_{match_id}")]
+        ])
+    )
+    
+    # Try to pin the message
+    try:
+        await context.bot.pin_chat_message(update.effective_chat.id, challenge_msg.message_id)
+    except Exception as e:
+        logging.warning(f"Could not pin challenge message: {e}")
+    
+    await query.edit_message_text(
+        f"✅ Challenge created!\nMatch ID: <code>{match_id}</code>",
+        parse_mode=ParseMode.HTML
+    )
+
+# Callback for accepting a challenge
+async def group_challenge_accept_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    
+    match_id = query.data.replace("gc_accept_", "")
+    match = game_sessions.get(match_id)
+    
+    if not match or match.get("status") != "pending":
+        await query.answer("This challenge is no longer available.", show_alert=True)
+        return
+    
+    if user.id == match["host_id"]:
+        await query.answer("You can't accept your own challenge!", show_alert=True)
+        return
+    
+    await ensure_user_in_wallets(user.id, user.username, context=context)
+    
+    if user_wallets.get(user.id, 0.0) < match["bet_amount_usd"]:
+        await query.answer("You don't have enough balance for this challenge.", show_alert=True)
+        return
+    
+    # Start the PvP match
+    match["opponent_id"] = user.id
+    match["opponent_username"] = user.username or f"User_{user.id}"
+    match["status"] = "active"
+    
+    # Deduct bets from both players
+    user_wallets[match["host_id"]] -= match["bet_amount_usd"]
+    user_wallets[user.id] -= match["bet_amount_usd"]
+    save_user_data(match["host_id"])
+    save_user_data(user.id)
+    
+    currency_symbol = CURRENCY_SYMBOLS.get(match["currency"], "$")
+    formatted_bet = f"{currency_symbol}{match['bet_amount_currency']:.2f}"
+    
+    await query.edit_message_text(
+        f"🎮 <b>MATCH STARTED!</b>\n\n"
+        f"👤 @{match['host_username']} vs @{user.username or user.id}\n"
+        f"💰 Prize Pool: {currency_symbol}{match['bet_amount_currency'] * 2:.2f}\n\n"
+        f"Match will begin shortly...",
+        parse_mode=ParseMode.HTML
+    )
+    
+    # Start the actual game (similar to existing PvP logic)
+    await asyncio.sleep(2)
+    await execute_group_challenge_game(update, context, match_id)
+
+# Callback for host playing with bot
+async def group_challenge_playbot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user = query.from_user
+    
+    match_id = query.data.replace("gc_playbot_", "")
+    match = game_sessions.get(match_id)
+    
+    if not match or match.get("status") != "pending":
+        await query.answer("This challenge is no longer available.", show_alert=True)
+        return
+    
+    if user.id != match["host_id"]:
+        await query.answer("Only the host can play with the bot!", show_alert=True)
+        return
+    
+    # Convert to PvB game
+    match["status"] = "active"
+    match["opponent_id"] = 0  # Bot
+    match["opponent_username"] = "Bot"
+    
+    # Deduct bet from host
+    user_wallets[user.id] -= match["bet_amount_usd"]
+    save_user_data(user.id)
+    
+    await query.edit_message_text(
+        f"🤖 <b>PLAYING WITH BOT!</b>\n\n"
+        f"Match will begin shortly...",
+        parse_mode=ParseMode.HTML
+    )
+    
+    await asyncio.sleep(2)
+    await execute_group_challenge_game(update, context, match_id)
+
+# Execute the actual group challenge game
+async def execute_group_challenge_game(update: Update, context: ContextTypes.DEFAULT_TYPE, match_id: str):
+    """Execute the group challenge game with emoji animations and first-to-X scoring"""
+    match = game_sessions.get(match_id)
+    if not match:
+        return
+    
+    game_type = match["game_type"].replace("group_challenge_", "")
+    emoji_map = {"dice": "🎲", "darts": "🎯", "goal": "⚽", "bowl": "🎳"}
+    dice_type_map = {"dice": "dice", "darts": "dart", "goal": "football", "bowl": "bowling"}
+    
+    emoji = emoji_map.get(game_type, "🎮")
+    dice_type = dice_type_map.get(game_type)
+    
+    target_score = match.get("target_score", 1)
+    host_wins_count = 0
+    opponent_wins_count = 0
+    round_num = 0
+    max_rounds = 20  # Prevent infinite loops
+    
+    currency_symbol = CURRENCY_SYMBOLS.get(match["currency"], "$")
+    
+    # Play rounds until someone reaches target score
+    while host_wins_count < target_score and opponent_wins_count < target_score and round_num < max_rounds:
+        round_num += 1
+        
+        await context.bot.send_message(
+            match["chat_id"],
+            f"{emoji} <b>ROUND {round_num}</b> {emoji}\n\n"
+            f"Host: {host_wins_count} | Opponent: {opponent_wins_count}\n"
+            f"First to {target_score} wins!",
+            parse_mode=ParseMode.HTML
+        )
+        
+        # Send dice for both players for this round
+        host_rolls = []
+        opponent_rolls = []
+        
+        for i in range(match["rolls"]):
+            host_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+            if match["opponent_id"] != 0:  # Not bot
+                opponent_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+            else:
+                # Bot rolls (simulated)
+                await asyncio.sleep(0.5)
+                opponent_dice = await context.bot.send_dice(match["chat_id"], emoji=dice_type)
+            
+            await asyncio.sleep(4)  # Wait for animation
+            
+            host_rolls.append(host_dice.dice.value)
+            opponent_rolls.append(opponent_dice.dice.value)
+        
+        # Calculate scores for this round
+        host_score = sum(host_rolls)
+        opponent_score = sum(opponent_rolls)
+        
+        # Determine round winner
+        if host_score == opponent_score:
+            round_result = "🤝 Round tied! No point awarded."
+        elif match["mode"] == "normal":
+            if host_score > opponent_score:
+                host_wins_count += 1
+                round_result = f"✅ Host wins round! ({host_score} vs {opponent_score})"
+            else:
+                opponent_wins_count += 1
+                round_result = f"✅ Opponent wins round! ({opponent_score} vs {host_score})"
+        else:  # crazy mode
+            if host_score < opponent_score:
+                host_wins_count += 1
+                round_result = f"✅ Host wins round! ({host_score} vs {opponent_score})"
+            else:
+                opponent_wins_count += 1
+                round_result = f"✅ Opponent wins round! ({opponent_score} vs {host_score})"
+        
+        await context.bot.send_message(
+            match["chat_id"],
+            round_result,
+            parse_mode=ParseMode.HTML
+        )
+        
+        await asyncio.sleep(2)
+    
+    # Determine overall winner
+    prize_usd = match["bet_amount_usd"] * 2
+    prize_currency = match["bet_amount_currency"] * 2
+    
+    if host_wins_count == opponent_wins_count:
+        # Tie - return bets (shouldn't happen with first-to-X but just in case)
+        user_wallets[match["host_id"]] += match["bet_amount_usd"]
+        if match["opponent_id"] != 0:
+            user_wallets[match["opponent_id"]] += match["bet_amount_usd"]
+        save_user_data(match["host_id"])
+        if match["opponent_id"] != 0:
+            save_user_data(match["opponent_id"])
+        
+        result_text = (
+            f"🤝 <b>TIE!</b>\n\n"
+            f"Both reached {host_wins_count} wins!\n"
+            f"Bets returned to both players."
+        )
+    elif host_wins_count >= target_score:
+        user_wallets[match["host_id"]] += prize_usd
+        update_stats_on_bet(match["host_id"], match_id, match["bet_amount_usd"], True, pvp_win=True, multiplier=2, context=context)
+        if match["opponent_id"] != 0:
+            update_stats_on_bet(match["opponent_id"], match_id, match["bet_amount_usd"], False, context=context)
+        save_user_data(match["host_id"])
+        
+        result_text = (
+            f"🎉 <b>@{match['host_username']} WINS!</b>\n\n"
+            f"Final Score: Host {host_wins_count} - {opponent_wins_count} Opponent\n"
+            f"Prize: {currency_symbol}{prize_currency:.2f}"
+        )
+    else:
+        if match["opponent_id"] != 0:
+            user_wallets[match["opponent_id"]] += prize_usd
+            update_stats_on_bet(match["opponent_id"], match_id, match["bet_amount_usd"], True, pvp_win=True, multiplier=2, context=context)
+            save_user_data(match["opponent_id"])
+        update_stats_on_bet(match["host_id"], match_id, match["bet_amount_usd"], False, context=context)
+        
+        result_text = (
+            f"🎉 <b>@{match.get('opponent_username', 'Opponent')} WINS!</b>\n\n"
+            f"Final Score: Opponent {opponent_wins_count} - {host_wins_count} Host\n"
+            f"Prize: {currency_symbol}{prize_currency:.2f}"
+        )
+    
+    match["status"] = "completed"
+    
+    await context.bot.send_message(
+        match["chat_id"],
+        f"{emoji} <b>MATCH RESULT</b> {emoji}\n\n"
+        f"{result_text}\n\n"
+        f"Match ID: <code>{match_id}</code>",
+        parse_mode=ParseMode.HTML
     )
 
 # --- Play vs Bot main logic (bot rolls real emoji) ---
@@ -5358,6 +6013,28 @@ async def message_listener(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_escrow_conversation(update, context)
         return
 
+    # Handle single emoji game bet input
+    if context.user_data.get('awaiting_single_emoji_bet') and update.message.text:
+        game_key = context.user_data.get('single_emoji_game')
+        if game_key in SINGLE_EMOJI_GAMES:
+            try:
+                bet_amount_usd, bet_amount_currency, currency = parse_bet_amount(update.message.text, user.id)
+                
+                if user_wallets.get(user.id, 0.0) < bet_amount_usd:
+                    await send_insufficient_balance_message(update)
+                    context.user_data.clear()
+                    return
+                
+                # Clear the awaiting flag
+                context.user_data.clear()
+                
+                # Play the game
+                await play_single_emoji_game(update, context, game_key, bet_amount_usd, bet_amount_currency, currency)
+                return
+            except ValueError:
+                await update.message.reply_text("Invalid amount. Please enter a valid number or 'all'.")
+                return
+
     # Handle PvB games
     active_pvb_game_id = context.chat_data.get(f"active_pvb_game_{user.id}")
     if active_pvb_game_id and active_pvb_game_id in game_sessions:
@@ -5802,12 +6479,20 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, from_
         "• <b>Predict</b>: <code>/predict amount up/down</code>\n"
         "💡 You can use 'all' instead of an amount to bet your entire balance!\n"
         "💡 All amounts are in your selected currency (see Settings).\n\n"
+        "<b>🎮 Single Emoji Games:</b>\n"
+        "• Access via Games → Emoji Games → Single Emoji Games\n"
+        "• Quick instant-result games: Darts, Soccer, Basket, Bowling, Slot\n\n"
         "<b>PvP & PvB Games:</b>\n"
-        "• <b>Dice, Darts, Football, Bowling</b>\n"
-        "  - vs Player: <code>/dice @user amount ftX</code>\n"
-        "  - vs Bot: Use <code>/games</code> menu\n\n"
+        "• <b>Dice, Darts, Football (Goal), Bowling</b>\n"
+        "  - <b>vs Player</b>: <code>/dice @user amount MX ftY</code>\n"
+        "     Example: <code>/dice @friend 5 M1 ft3</code> (Mode 1, First to 3)\n"
+        "  - <b>vs Bot</b>: Use <code>/games</code> menu\n"
+        "  - <b>Group Challenge</b> (Groups only): <code>/dice amount</code>\n"
+        "     Example: <code>/dice 10</code> creates a challenge in the group\n"
+        "     Others can accept or you can play with bot\n"
+        "• Same for: <code>/darts</code>, <code>/goal</code>, <code>/bowl</code>\n\n"
         "<b>Wallet & Withdrawals:</b>\n"
-        "• <code>/deposit</code> or <code>/bal</code>\n"
+        "• <code>/deposit</code> or <code>/bal</code> or <code>/bank</code> or <code>/hb</code>\n"
         "• Use the main menu for withdrawals (set withdrawal address in Settings first)\n"
         "• <code>/tip @user amount</code> or reply to a message\n"
         "• <code>/rain amount N</code> — Rain on N users\n"
@@ -5825,7 +6510,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE, from_
         "• <code>/continue &lt;id&gt;</code> — Resume an active game\n\n"
         "<b>⚙️ Settings & Account:</b>\n"
         "• <code>/referral</code>, <code>/achievements</code>, <code>/level</code>\n"
-        "• <code>/language</code> — Change bot language (en/es)\n"
+        "• <code>/language</code> — Change bot language (en/es/fr/ru/hi/zh)\n"
         "• Use Settings menu to:\n"
         "  - Set your withdrawal address (USDT-BEP20)\n"
         "  - Change your display currency\n"
@@ -6127,25 +6812,22 @@ def generate_deposit_address_for_user(user_id: int, method: str):
         # Since we're given a WIF key, we need to use it differently
         # We'll use a hash-based derivation for child addresses
         import hashlib
-        from bip_utils import WifDecoder, Bip44Coins
+        from bip_utils import WifDecoder
         
+        # Decode WIF to get private key bytes
         try:
-            # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_BTC, net_ver=Bip44Coins.BITCOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child address using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PublicKey().ToAddress(), address_index
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_BTC), Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            child_ctx = bip44_ctx.AddressIndex(address_index)
-            return child_ctx.PublicKey().ToAddress(), address_index
+            master_priv_bytes = wif_dec.Raw().ToBytes()
+        except Exception as e:
+            raise ValueError(f"Invalid Bitcoin WIF key: {e}")
+        
+        # Derive child address using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PublicKey().ToAddress(), address_index
     
     # Litecoin
     elif blockchain == "litecoin":
@@ -6153,25 +6835,22 @@ def generate_deposit_address_for_user(user_id: int, method: str):
             raise ValueError("Litecoin private key not configured")
         
         import hashlib
-        from bip_utils import WifDecoder, Bip44Coins
+        from bip_utils import WifDecoder
         
+        # Decode WIF to get private key bytes
         try:
-            # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_LTC, net_ver=Bip44Coins.LITECOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child address using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PublicKey().ToAddress(), address_index
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_LTC), Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            child_ctx = bip44_ctx.AddressIndex(address_index)
-            return child_ctx.PublicKey().ToAddress(), address_index
+            master_priv_bytes = wif_dec.Raw().ToBytes()
+        except Exception as e:
+            raise ValueError(f"Invalid Litecoin WIF key: {e}")
+        
+        # Derive child address using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PublicKey().ToAddress(), address_index
     
     # Dogecoin
     elif blockchain == "dogecoin":
@@ -6179,25 +6858,22 @@ def generate_deposit_address_for_user(user_id: int, method: str):
             raise ValueError("Dogecoin private key not configured")
         
         import hashlib
-        from bip_utils import WifDecoder, Bip44Coins
+        from bip_utils import WifDecoder
         
+        # Decode WIF to get private key bytes
         try:
-            # Try to decode as WIF first
             wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_DOGE, net_ver=Bip44Coins.DOGECOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child address using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PublicKey().ToAddress(), address_index
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_DOGE), Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            child_ctx = bip44_ctx.AddressIndex(address_index)
-            return child_ctx.PublicKey().ToAddress(), address_index
+            master_priv_bytes = wif_dec.Raw().ToBytes()
+        except Exception as e:
+            raise ValueError(f"Invalid Dogecoin WIF key: {e}")
+        
+        # Derive child address using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PublicKey().ToAddress(), address_index
     
     # Solana
     elif blockchain == "solana":
@@ -6250,70 +6926,47 @@ def generate_deposit_address_for_user(user_id: int, method: str):
 def get_private_key_for_address_index(address_index, blockchain="eth"):
     """Get private key for address index - supports all blockchains"""
     import hashlib
+    from bip_utils import WifDecoder
     
     if blockchain in ["bsc", "eth", "polygon"]:
         bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY), Bip44Coins.ETHEREUM).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
         return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
     
     elif blockchain == "bitcoin":
-        from bip_utils import WifDecoder, Bip44Coins
+        wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_BTC, net_ver=Bip44Coins.BITCOIN.KeyNetVersions())
+        master_priv_bytes = wif_dec.Raw().ToBytes()
         
-        try:
-            # Try to decode as WIF first
-            wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_BTC, net_ver=Bip44Coins.BITCOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child key using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PrivateKey().Raw().ToHex()
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_BTC), Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
+        # Derive child key using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.BITCOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PrivateKey().Raw().ToHex()
     
     elif blockchain == "litecoin":
-        from bip_utils import WifDecoder, Bip44Coins
+        wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_LTC, net_ver=Bip44Coins.LITECOIN.KeyNetVersions())
+        master_priv_bytes = wif_dec.Raw().ToBytes()
         
-        try:
-            # Try to decode as WIF first
-            wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_LTC, net_ver=Bip44Coins.LITECOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child key using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PrivateKey().Raw().ToHex()
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_LTC), Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
+        # Derive child key using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.LITECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PrivateKey().Raw().ToHex()
     
     elif blockchain == "dogecoin":
-        from bip_utils import WifDecoder, Bip44Coins
+        wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_DOGE, net_ver=Bip44Coins.DOGECOIN.KeyNetVersions())
+        master_priv_bytes = wif_dec.Raw().ToBytes()
         
-        try:
-            # Try to decode as WIF first
-            wif_dec = WifDecoder.Decode(wif_str=MASTER_PRIVATE_KEY_DOGE, net_ver=Bip44Coins.DOGECOIN.KeyNetVersions())
-            master_priv_bytes = wif_dec
-            
-            # Derive child key using hash of master + index
-            seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
-            child_seed = hashlib.sha256(seed_material).digest()
-            
-            # Create BIP44 from the derived seed
-            bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
-            return bip44_ctx.PrivateKey().Raw().ToHex()
-        except:
-            # If WIF decode fails, try as hex
-            bip44_ctx = Bip44.FromPrivateKey(bytes.fromhex(MASTER_PRIVATE_KEY_DOGE), Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT)
-            return bip44_ctx.AddressIndex(address_index).PrivateKey().Raw().ToHex()
+        # Derive child key using hash of master + index
+        seed_material = master_priv_bytes + address_index.to_bytes(4, 'big')
+        child_seed = hashlib.sha256(seed_material).digest()
+        
+        # Create BIP44 from the derived seed
+        bip44_ctx = Bip44.FromSeed(child_seed, Bip44Coins.DOGECOIN).Purpose().Coin().Account(0).Change(Bip44Changes.CHAIN_EXT).AddressIndex(0)
+        return bip44_ctx.PrivateKey().Raw().ToHex()
     
     elif blockchain == "solana":
         seed_material = bytes.fromhex(MASTER_PRIVATE_KEY_SOL) + address_index.to_bytes(4, 'big')
@@ -7876,9 +8529,12 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if lang_code in LANGUAGES:
         user_stats[user.id]["userinfo"]["language"] = lang_code
         save_user_data(user.id)
-        await query.edit_message_text(f"Language set to {lang_code}.")
+        language_name = LANGUAGES[lang_code].get("language_name", lang_code)
+        await query.answer(f"Language set to {language_name}", show_alert=True)
+        # Go back to settings menu
+        await settings_command(update, context)
     else:
-        await query.edit_message_text("Invalid language code.")
+        await query.answer("Invalid language code.", show_alert=True)
 
 async def currency_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle currency selection"""
@@ -8206,8 +8862,9 @@ async def admin_limits_choose_type_step(update: Update, context: ContextTypes.DE
 
     all_games = [
         'blackjack', 'coin_flip', 'roulette', 'dice_roll', 'slots',
-        'predict', 'tower', 'mines', 'pvp_dice', 'pvp_darts',
-        'pvp_goal', 'pvp_bowl'
+        'predict', 'tower', 'mines', 'keno', 'limbo', 'highlow',
+        'pvp_dice', 'pvp_darts', 'pvp_goal', 'pvp_bowl',
+        'emoji_darts', 'emoji_soccer', 'emoji_basket', 'emoji_bowling', 'emoji_slot'
     ]
 
     keyboard = []
@@ -8789,17 +9446,23 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("💱 Currency", callback_data="settings_currency")],
+        [InlineKeyboardButton("🌐 Language", callback_data="settings_language")],
         [InlineKeyboardButton("💳 Withdrawal Address", callback_data="settings_withdrawal")],
         [InlineKeyboardButton("🔙 Back to Main Menu", callback_data="back_to_main")]
     ]
     
     user_currency = get_user_currency(user.id)
     currency_symbol = CURRENCY_SYMBOLS.get(user_currency, "$")
+    user_language = user_stats[user.id].get("userinfo", {}).get("language", "en")
+    language_name = LANGUAGES.get(user_language, {}).get("language_name", "English 🇬🇧")
     withdrawal_address = user_stats[user.id].get("withdrawal_address")
     withdrawal_status = f"<b>Withdrawal Address:</b> {'✅ Set' if withdrawal_address else '❌ Not Set'}"
     
     await query.edit_message_text(
-        f"⚙️ <b>Settings</b>\n\nManage your account settings here.\n\n<b>Current Currency:</b> {user_currency} ({currency_symbol})\n{withdrawal_status}",
+        f"⚙️ <b>Settings</b>\n\nManage your account settings here.\n\n"
+        f"<b>Current Currency:</b> {user_currency} ({currency_symbol})\n"
+        f"<b>Current Language:</b> {language_name}\n"
+        f"{withdrawal_status}",
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
@@ -8825,6 +9488,25 @@ async def settings_callback_handler(update: Update, context: ContextTypes.DEFAUL
             "💱 <b>Select Currency</b>\n\n"
             "Choose your preferred currency. All amounts will be displayed in this currency.\n"
             "Your wallet balance is stored in USD and converted for display.",
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+
+    if action == "language":
+        await ensure_user_in_wallets(user.id, user.username, context=context)
+        current_language = user_stats[user.id].get("userinfo", {}).get("language", "en")
+        keyboard = []
+        for lang_code, lang_data in LANGUAGES.items():
+            text = lang_data.get("language_name", lang_code)
+            if lang_code == current_language:
+                text += " ✓"
+            keyboard.append([InlineKeyboardButton(text, callback_data=f"lang_{lang_code}")])
+        keyboard.append([InlineKeyboardButton("🔙 Back to Settings", callback_data="main_settings")])
+        
+        await query.edit_message_text(
+            "🌐 <b>Select Language</b>\n\n"
+            "Choose your preferred language. The bot will respond to you in this language.",
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
@@ -9331,6 +10013,19 @@ async def claim_gift_code_command(update: Update, context: ContextTypes.DEFAULT_
     if user.id in code_data["claimed_by"]:
         await update.message.reply_text("You have already claimed this gift code.")
         return
+    
+    # Check wager requirement
+    wager_requirement = code_data.get("wager_requirement", 0)
+    if wager_requirement > 0:
+        user_total_wagered = user_stats[user.id].get("bets", {}).get("amount", 0.0)
+        if user_total_wagered < wager_requirement:
+            await update.message.reply_text(
+                f"❌ You don't meet the wager requirement for this gift code.\n\n"
+                f"Required: ${wager_requirement:.2f} wagered\n"
+                f"Your total wagered: ${user_total_wagered:.2f}\n"
+                f"You need to wager ${wager_requirement - user_total_wagered:.2f} more in the casino to claim this code."
+            )
+            return
         
     # All checks passed, award the user
     amount = code_data["amount"]
@@ -9394,6 +10089,7 @@ def main():
             ADMIN_BROADCAST_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_broadcast_step)],
             ADMIN_GIFT_CODE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_gift_code_create_step2)],
             ADMIN_GIFT_CODE_CLAIMS: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_gift_code_create_step3)],
+            ADMIN_GIFT_CODE_WAGER: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_gift_code_create_step4)],
         },
         fallbacks=[
             CallbackQueryHandler(admin_dashboard_command, pattern="^admin_dashboard$"),
@@ -9505,7 +10201,7 @@ def main():
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler(["bj", "blackjack"], blackjack_command)); app.add_handler(CommandHandler("flip", coin_flip_command))
     app.add_handler(CommandHandler(["roul", "roulette"], roulette_command)); app.add_handler(CommandHandler("dr", dice_roll_command))
-    app.add_handler(CommandHandler("sl", slots_command)); app.add_handler(CommandHandler("bank", bank_command))
+    app.add_handler(CommandHandler("sl", slots_command)); app.add_handler(CommandHandler("bank", bank_command)); app.add_handler(CommandHandler("hb", bank_command)) # hb is alias for bank
     app.add_handler(CommandHandler("rain", rain_command)); app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("users", users_command)); app.add_handler(CommandHandler("dice", dice_command))
     app.add_handler(CommandHandler("darts", darts_command)); app.add_handler(CommandHandler("goal", football_command))
@@ -9571,7 +10267,13 @@ def main():
     app.add_handler(withdrawal_approval_handler)
 
     app.add_handler(CallbackQueryHandler(main_menu_callback, pattern=r"^(main_|back_to_main|my_matches|my_deals|deposit_usdt_menu|deposit_coming_soon)"))
-    app.add_handler(CallbackQueryHandler(games_category_callback, pattern=r"^games_category_")) # NEW
+    app.add_handler(CallbackQueryHandler(games_category_callback, pattern=r"^games_(category_|emoji_)")) # NEW - updated to handle emoji subcategories
+    app.add_handler(CallbackQueryHandler(play_single_emoji_callback, pattern=r"^play_single_")) # NEW - Single emoji games
+    app.add_handler(CallbackQueryHandler(group_challenge_mode_callback, pattern=r"^gc_mode_")) # NEW - Group challenge mode
+    app.add_handler(CallbackQueryHandler(group_challenge_rolls_callback, pattern=r"^gc_rolls_")) # NEW - Group challenge rolls
+    app.add_handler(CallbackQueryHandler(group_challenge_target_callback, pattern=r"^gc_target_")) # NEW - Group challenge target score
+    app.add_handler(CallbackQueryHandler(group_challenge_accept_callback, pattern=r"^gc_accept_")) # NEW - Accept group challenge
+    app.add_handler(CallbackQueryHandler(group_challenge_playbot_callback, pattern=r"^gc_playbot_")) # NEW - Play with bot
     app.add_handler(CallbackQueryHandler(level_all_command, pattern=r"^level_all$")) # NEW
     app.add_handler(CallbackQueryHandler(price_update_callback, pattern=r"^price_update_")) # NEW
     app.add_handler(CallbackQueryHandler(game_info_callback, pattern=r"^game_")); app.add_handler(CallbackQueryHandler(blackjack_callback, pattern=r"^bj_"))
@@ -9673,7 +10375,27 @@ async def select_bombs_callback(update: Update, context: ContextTypes.DEFAULT_TY
     return SELECT_BET_AMOUNT
 
 async def select_bet_amount_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    game_type = context.user_data['game_type']
+    game_type = context.user_data.get('game_type')
+    single_emoji_game = context.user_data.get('single_emoji_game')
+    
+    if single_emoji_game:
+        # Handle single emoji game bet input
+        user = update.effective_user
+        try:
+            bet_amount_usd, bet_amount_currency, currency = parse_bet_amount(update.message.text, user.id)
+        except ValueError:
+            await update.message.reply_text("Invalid amount. Please enter a valid number or 'all'.")
+            return SELECT_BET_AMOUNT
+        
+        if user_wallets.get(user.id, 0.0) < bet_amount_usd:
+            await send_insufficient_balance_message(update)
+            context.user_data.clear()
+            return ConversationHandler.END
+        
+        await play_single_emoji_game(update, context, single_emoji_game, bet_amount_usd, bet_amount_currency, currency)
+        context.user_data.clear()
+        return ConversationHandler.END
+    
     if game_type == 'mines':
         return await mines_command(update, context)
     elif game_type == 'tower':
@@ -9937,7 +10659,9 @@ async def admin_gift_code_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         text += "No active gift codes."
     else:
         for code, data in gift_codes.items():
-            text += f"• <code>{code}</code>: ${data['amount']:.2f}, {data['claims_left']}/{data['total_claims']} left\n"
+            wager_req = data.get("wager_requirement", 0)
+            wager_text = f" (Wager: ${wager_req:.0f})" if wager_req > 0 else ""
+            text += f"• <code>{code}</code>: ${data['amount']:.2f}, {data['claims_left']}/{data['total_claims']} left{wager_text}\n"
             
     keyboard = [
         [InlineKeyboardButton("➕ Create New Code", callback_data="admin_gift_create")],
@@ -9968,20 +10692,47 @@ async def admin_gift_code_create_step3(update: Update, context: ContextTypes.DEF
     try:
         claims = int(update.message.text)
         if claims <= 0: raise ValueError
+        context.user_data['gift_code_claims'] = claims
+        await update.message.reply_text(
+            "Number of claims set. Now enter the wager requirement (in $).\n\n"
+            "Enter <b>0</b> for no wager requirement, or any positive number (e.g., 100 means users must have wagered $100 to claim).",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Cancel", callback_data="admin_gift_codes")]]),
+            parse_mode=ParseMode.HTML
+        )
+        return ADMIN_GIFT_CODE_WAGER
+    except ValueError:
+        await update.message.reply_text("Invalid number. Please enter a positive integer.")
+        return ADMIN_GIFT_CODE_CLAIMS
+
+async def admin_gift_code_create_step4(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        wager_requirement = float(update.message.text)
+        if wager_requirement < 0: raise ValueError
+        
         amount = context.user_data['gift_code_amount']
+        claims = context.user_data['gift_code_claims']
         
         code = f"GIFT-{''.join(random.choices(string.ascii_uppercase + string.digits, k=8))}"
         gift_codes[code] = {
             "amount": amount,
             "total_claims": claims,
             "claims_left": claims,
+            "wager_requirement": wager_requirement,
             "claimed_by": [],
             "created_by": update.effective_user.id,
             "created_at": str(datetime.now(timezone.utc))
         }
         save_gift_code(code)
         
-        await update.message.reply_text(f"✅ Gift code created successfully!\n\nCode: <code>{code}</code>\nAmount: ${amount:.2f}\nUses: {claims}")
+        wager_text = f"Wager requirement: ${wager_requirement:.2f}" if wager_requirement > 0 else "No wager requirement"
+        await update.message.reply_text(
+            f"✅ Gift code created successfully!\n\n"
+            f"Code: <code>{code}</code>\n"
+            f"Amount: ${amount:.2f}\n"
+            f"Uses: {claims}\n"
+            f"{wager_text}",
+            parse_mode=ParseMode.HTML
+        )
         context.user_data.clear()
         
         # Fake query to go back to the menu
@@ -9994,8 +10745,8 @@ async def admin_gift_code_create_step3(update: Update, context: ContextTypes.DEF
         
         return ConversationHandler.END
     except ValueError:
-        await update.message.reply_text("Invalid number. Please enter a positive integer.")
-        return ADMIN_GIFT_CODE_CLAIMS
+        await update.message.reply_text("Invalid number. Please enter 0 or a positive number.")
+        return ADMIN_GIFT_CODE_WAGER
 
 if __name__ == "__main__":
     main()
